@@ -114,3 +114,20 @@ export interface DailyLog {
     fat: number;
   };
 }
+
+export interface BarcodeProduct {
+  barcode: string;
+  name: string;
+  brand?: string;
+  servingSize: number;
+  servingUnit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  imageUrl?: string;
+  ingredients?: string[];
+}

@@ -1,22 +1,58 @@
-import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Minus, Plus, Trash2 } from 'lucide-react-native';
+import { Minus, Plus, Trash2, Scan } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 import { useNutrition } from '@/hooks/useNutritionStore';
 import { NutrientProgressBar } from '@/components/NutrientProgressBar';
+import type { FoodItem, MealEntry } from '@/types/nutrition';
 
 export default function FoodDetailsScreen() {
   const router = useRouter();
-  const { entryId } = useLocalSearchParams<{ entryId: string }>();
-  const { mealEntries, updateMealEntry, removeMealEntry } = useNutrition();
+  const { entryId, foodData, source, mealType } = useLocalSearchParams<{ 
+    entryId?: string;
+    foodData?: string;
+    source?: string;
+    mealType?: MealEntry['mealType'];
+  }>();
+  const { mealEntries, updateMealEntry, removeMealEntry, addMealEntry } = useNutrition();
   
-  const entry = mealEntries.find((entry) => entry.id === entryId);
-  const [servings, setServings] = useState<number>(entry?.servings || 1);
+  // Initialize state first
+  const [servings, setServings] = useState<number>(1);
   
-  if (!entry) {
-    router.back();
+  // Determine data source and get food item
+  const entry = entryId ? mealEntries.find((entry) => entry.id === entryId) : null;
+  const isNewItem = !entryId && !!foodData;
+  
+  let foodItem: FoodItem | null = null;
+  
+  if (entry) {
+    foodItem = entry.foodItem;
+  } else if (foodData) {
+    try {
+      foodItem = JSON.parse(foodData);
+    } catch (error) {
+      console.error('Failed to parse food data:', error);
+    }
+  }
+  
+  // Update servings state when entry changes
+  useEffect(() => {
+    if (entry) {
+      setServings(entry.servings);
+    }
+  }, [entry]);
+  
+  // Handle navigation for invalid data
+  useEffect(() => {
+    if (!foodItem) {
+      router.back();
+    }
+  }, [foodItem, router]);
+  
+  // Early return if no valid data
+  if (!foodItem) {
     return null;
   }
   
@@ -26,11 +62,29 @@ export default function FoodDetailsScreen() {
   };
   
   const handleSave = () => {
-    updateMealEntry(entry.id, { servings });
+    if (isNewItem && mealType) {
+      // Add new meal entry for barcode-scanned product
+      const today = new Date().toISOString().split('T')[0];
+      addMealEntry({
+        foodItem,
+        servings,
+        mealType: mealType as MealEntry['mealType'],
+        date: today,
+      });
+    } else if (entry) {
+      // Update existing meal entry
+      updateMealEntry(entry.id, { servings });
+    }
     router.back();
   };
   
   const handleDelete = () => {
+    if (isNewItem) {
+      // Just go back for new items
+      router.back();
+      return;
+    }
+    
     Alert.alert(
       'Delete Food Item',
       'Are you sure you want to remove this food item from your diary?',
@@ -48,7 +102,7 @@ export default function FoodDetailsScreen() {
     );
   };
   
-  const { foodItem } = entry;
+  // Remove this line since foodItem is now defined above
   const totalCalories = foodItem.calories * servings;
   const totalProtein = foodItem.protein * servings;
   const totalCarbs = foodItem.carbs * servings;
@@ -58,10 +112,27 @@ export default function FoodDetailsScreen() {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.foodHeader}>
-          <Text style={styles.foodName}>{foodItem.name}</Text>
-          {foodItem.brand && (
-            <Text style={styles.foodBrand}>{foodItem.brand}</Text>
-          )}
+          <View style={styles.foodHeaderContent}>
+            <View style={styles.foodInfo}>
+              <Text style={styles.foodName}>{foodItem.name}</Text>
+              {foodItem.brand && (
+                <Text style={styles.foodBrand}>{foodItem.brand}</Text>
+              )}
+              {source === 'barcode' && (foodItem as any).barcode && (
+                <View style={styles.barcodeInfo}>
+                  <Scan size={16} color={colors.mediumGray} />
+                  <Text style={styles.barcodeText}>Barcode: {(foodItem as any).barcode}</Text>
+                </View>
+              )}
+            </View>
+            {(foodItem as any).imageUrl && (
+              <Image 
+                source={{ uri: (foodItem as any).imageUrl }} 
+                style={styles.productImage}
+                resizeMode="cover"
+              />
+            )}
+          </View>
         </View>
         
         <View style={styles.servingSection}>
@@ -174,20 +245,24 @@ export default function FoodDetailsScreen() {
       </ScrollView>
       
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.deleteButton}
-          onPress={handleDelete}
-          testID="delete-button"
-        >
-          <Trash2 size={24} color={colors.danger} />
-        </TouchableOpacity>
+        {!isNewItem && (
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            testID="delete-button"
+          >
+            <Trash2 size={24} color={colors.danger} />
+          </TouchableOpacity>
+        )}
         
         <TouchableOpacity 
-          style={styles.saveButton}
+          style={[styles.saveButton, isNewItem && styles.fullWidthButton]}
           onPress={handleSave}
           testID="save-button"
         >
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+          <Text style={styles.saveButtonText}>
+            {isNewItem ? 'Add to Diary' : 'Save Changes'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -359,5 +434,31 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  foodHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  foodInfo: {
+    flex: 1,
+  },
+  barcodeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  barcodeText: {
+    fontSize: 12,
+    color: colors.mediumGray,
+    marginLeft: 4,
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginLeft: 16,
+  },
+  fullWidthButton: {
+    marginRight: 0,
   },
 });

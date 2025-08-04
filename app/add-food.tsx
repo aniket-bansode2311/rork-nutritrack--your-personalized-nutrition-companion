@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Camera, Sparkles, Search } from 'lucide-react-native';
+import { Plus, Camera, Sparkles, Search, Scan } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 import { SearchBar } from '@/components/SearchBar';
@@ -142,14 +142,25 @@ export default function AddFoodScreen() {
       ) : (
         <View>
           <Text style={styles.emptyText}>Search for food items to add to your meal.</Text>
-          <TouchableOpacity 
-            style={styles.scanButton}
-            onPress={() => router.push({ pathname: '/ai-food-scan', params: { mealType } })}
-            testID="scan-food-button"
-          >
-            <Camera size={20} color={colors.white} />
-            <Text style={styles.scanButtonText}>Scan Food with AI</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity 
+              style={styles.scanButton}
+              onPress={() => router.push({ pathname: '/ai-food-scan', params: { mealType } })}
+              testID="scan-food-button"
+            >
+              <Camera size={20} color={colors.white} />
+              <Text style={styles.scanButtonText}>Scan Food with AI</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.scanButton, styles.barcodeButton]}
+              onPress={() => router.push({ pathname: '/barcode-scanner', params: { mealType } })}
+              testID="barcode-scan-button"
+            >
+              <Scan size={20} color={colors.white} />
+              <Text style={styles.scanButtonText}>Scan Barcode</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -334,5 +345,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.darkGray,
     textTransform: 'uppercase',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  barcodeButton: {
+    backgroundColor: colors.secondary,
   },
 });

@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { Home, PieChart, User } from "lucide-react-native";
+import { Home, PieChart, User, ChefHat } from "lucide-react-native";
 
 import { colors } from "@/constants/colors";
 
@@ -34,6 +34,14 @@ export default function TabLayout() {
           title: "Food Diary",
           tabBarIcon: ({ color }) => <PieChart color={color} size={24} />,
           tabBarLabel: "Diary",
+        }}
+      />
+      <Tabs.Screen
+        name="recipes"
+        options={{
+          title: "Recipes",
+          tabBarIcon: ({ color }) => <ChefHat color={color} size={24} />,
+          tabBarLabel: "Recipes",
         }}
       />
       <Tabs.Screen

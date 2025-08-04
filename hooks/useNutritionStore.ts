@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 
 import { mockMealEntries } from '@/mocks/mealEntries';
 import { mockUserProfile } from '@/mocks/userProfile';
-import { DailyLog, FoodItem, MealEntry, UserProfile } from '@/types/nutrition';
+import { DailyLog, FoodItem, MealEntry, UserProfile, Recipe, RecipeEntry } from '@/types/nutrition';
 import { mockFoodItems } from '@/mocks/foodItems';
+import { mockRecipes } from '@/mocks/recipes';
 
 // Helper function to calculate total nutrition for a day
-const calculateTotalNutrition = (meals: MealEntry[]) => {
-  return meals.reduce(
+const calculateTotalNutrition = (meals: MealEntry[], recipes: RecipeEntry[] = []) => {
+  const mealNutrition = meals.reduce(
     (acc, meal) => {
       const { foodItem, servings } = meal;
       return {
@@ -21,6 +22,27 @@ const calculateTotalNutrition = (meals: MealEntry[]) => {
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
+  
+  const recipeNutrition = recipes.reduce(
+    (acc, recipe) => {
+      const { nutritionPerServing } = recipe.recipe;
+      const { servings } = recipe;
+      return {
+        calories: acc.calories + nutritionPerServing.calories * servings,
+        protein: acc.protein + nutritionPerServing.protein * servings,
+        carbs: acc.carbs + nutritionPerServing.carbs * servings,
+        fat: acc.fat + nutritionPerServing.fat * servings,
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  
+  return {
+    calories: mealNutrition.calories + recipeNutrition.calories,
+    protein: mealNutrition.protein + recipeNutrition.protein,
+    carbs: mealNutrition.carbs + recipeNutrition.carbs,
+    fat: mealNutrition.fat + recipeNutrition.fat,
+  };
 };
 
 // Helper to get today's date in YYYY-MM-DD format
@@ -36,6 +58,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [favoriteFoods, setFavoriteFoods] = useState<string[]>([]);
   const [customFoods, setCustomFoods] = useState<FoodItem[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>(mockRecipes);
+  const [recipeEntries, setRecipeEntries] = useState<RecipeEntry[]>([]);
+  const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
 
   // Load data from AsyncStorage on mount
   useEffect(() => {
@@ -46,6 +71,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         const storedFoodItems = await AsyncStorage.getItem('foodItems');
         const storedFavoriteFoods = await AsyncStorage.getItem('favoriteFoods');
         const storedCustomFoods = await AsyncStorage.getItem('customFoods');
+        const storedRecipes = await AsyncStorage.getItem('recipes');
+        const storedRecipeEntries = await AsyncStorage.getItem('recipeEntries');
+        const storedFavoriteRecipes = await AsyncStorage.getItem('favoriteRecipes');
 
         if (storedUserProfile) {
           setUserProfile(JSON.parse(storedUserProfile));
@@ -61,6 +89,15 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         }
         if (storedCustomFoods) {
           setCustomFoods(JSON.parse(storedCustomFoods));
+        }
+        if (storedRecipes) {
+          setRecipes(JSON.parse(storedRecipes));
+        }
+        if (storedRecipeEntries) {
+          setRecipeEntries(JSON.parse(storedRecipeEntries));
+        }
+        if (storedFavoriteRecipes) {
+          setFavoriteRecipes(JSON.parse(storedFavoriteRecipes));
         }
       } catch (error) {
         console.error('Error loading data from AsyncStorage:', error);
@@ -81,6 +118,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         await AsyncStorage.setItem('foodItems', JSON.stringify(foodItems));
         await AsyncStorage.setItem('favoriteFoods', JSON.stringify(favoriteFoods));
         await AsyncStorage.setItem('customFoods', JSON.stringify(customFoods));
+        await AsyncStorage.setItem('recipes', JSON.stringify(recipes));
+        await AsyncStorage.setItem('recipeEntries', JSON.stringify(recipeEntries));
+        await AsyncStorage.setItem('favoriteRecipes', JSON.stringify(favoriteRecipes));
       } catch (error) {
         console.error('Error saving data to AsyncStorage:', error);
       }
@@ -89,7 +129,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     if (!isLoading) {
       saveData();
     }
-  }, [userProfile, mealEntries, foodItems, favoriteFoods, customFoods, isLoading]);
+  }, [userProfile, mealEntries, foodItems, favoriteFoods, customFoods, recipes, recipeEntries, favoriteRecipes, isLoading]);
 
   // Get meals for the selected date
   const getMealsForDate = (date: string) => {
@@ -99,10 +139,11 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   // Get daily log for the selected date
   const getDailyLog = (date: string): DailyLog => {
     const meals = getMealsForDate(date);
+    const recipes = recipeEntries.filter(entry => entry.date === date);
     return {
       date,
       meals,
-      totalNutrition: calculateTotalNutrition(meals),
+      totalNutrition: calculateTotalNutrition(meals, recipes),
     };
   };
 
@@ -218,6 +259,123 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     return favoriteFoods.includes(foodId);
   };
 
+  // Recipe management functions
+  const addRecipe = (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newRecipe: Recipe = {
+      ...recipe,
+      id: `recipe-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setRecipes(prev => [...prev, newRecipe]);
+    return newRecipe;
+  };
+
+  const updateRecipe = (id: string, updates: Partial<Omit<Recipe, 'id' | 'createdAt'>>) => {
+    setRecipes(prev =>
+      prev.map(recipe =>
+        recipe.id === id
+          ? { ...recipe, ...updates, updatedAt: new Date().toISOString() }
+          : recipe
+      )
+    );
+  };
+
+  const deleteRecipe = (id: string) => {
+    setRecipes(prev => prev.filter(recipe => recipe.id !== id));
+    setRecipeEntries(prev => prev.filter(entry => entry.recipe.id !== id));
+    setFavoriteRecipes(prev => prev.filter(recipeId => recipeId !== id));
+  };
+
+  const searchRecipes = (query: string) => {
+    if (!query.trim()) return [];
+    const lowerQuery = query.toLowerCase().trim();
+    return recipes.filter(
+      recipe =>
+        recipe.name.toLowerCase().includes(lowerQuery) ||
+        recipe.description?.toLowerCase().includes(lowerQuery) ||
+        recipe.category?.toLowerCase().includes(lowerQuery) ||
+        recipe.tags?.some(tag => tag.toLowerCase().includes(lowerQuery))
+    );
+  };
+
+  const addRecipeEntry = (entry: Omit<RecipeEntry, 'id'>) => {
+    const newEntry: RecipeEntry = {
+      ...entry,
+      id: `recipe-entry-${Date.now()}`,
+    };
+    setRecipeEntries(prev => [...prev, newEntry]);
+  };
+
+  const removeRecipeEntry = (id: string) => {
+    setRecipeEntries(prev => prev.filter(entry => entry.id !== id));
+  };
+
+  const toggleRecipeFavorite = (recipeId: string) => {
+    setFavoriteRecipes(prev => {
+      if (prev.includes(recipeId)) {
+        return prev.filter(id => id !== recipeId);
+      } else {
+        return [...prev, recipeId];
+      }
+    });
+  };
+
+  const isRecipeFavorite = (recipeId: string) => {
+    return favoriteRecipes.includes(recipeId);
+  };
+
+  const getFavoriteRecipes = () => {
+    return recipes.filter(recipe => favoriteRecipes.includes(recipe.id));
+  };
+
+  const getRecipesByCategory = (category: string) => {
+    return recipes.filter(recipe => recipe.category === category);
+  };
+
+  const getRecipesByTag = (tag: string) => {
+    return recipes.filter(recipe => recipe.tags?.includes(tag));
+  };
+
+  const calculateRecipeNutrition = (recipe: Recipe) => {
+    const totalNutrition = recipe.ingredients.reduce(
+      (acc, ingredient) => {
+        const { foodItem, quantity, unit } = ingredient;
+        // Convert quantity to grams based on food item's serving size
+        const servingRatio = unit === 'g' ? quantity / foodItem.servingSize : quantity;
+        
+        return {
+          calories: acc.calories + (foodItem.calories * servingRatio),
+          protein: acc.protein + (foodItem.protein * servingRatio),
+          carbs: acc.carbs + (foodItem.carbs * servingRatio),
+          fat: acc.fat + (foodItem.fat * servingRatio),
+          fiber: acc.fiber + ((foodItem.fiber || 0) * servingRatio),
+          sugar: acc.sugar + ((foodItem.sugar || 0) * servingRatio),
+          sodium: acc.sodium + ((foodItem.sodium || 0) * servingRatio),
+        };
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+    );
+
+    // Return nutrition per serving
+    return {
+      calories: totalNutrition.calories / recipe.servings,
+      protein: totalNutrition.protein / recipe.servings,
+      carbs: totalNutrition.carbs / recipe.servings,
+      fat: totalNutrition.fat / recipe.servings,
+      fiber: totalNutrition.fiber / recipe.servings,
+      sugar: totalNutrition.sugar / recipe.servings,
+      sodium: totalNutrition.sodium / recipe.servings,
+    };
+  };
+
+  const importRecipeFromUrl = async (url: string) => {
+    // This would integrate with a recipe parsing API
+    // For now, return a placeholder
+    console.log('Recipe import from URL not implemented yet:', url);
+    throw new Error('Recipe import from URL is not implemented yet');
+  };
+
   return {
     userProfile,
     updateUserProfile,
@@ -238,6 +396,23 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     toggleFavorite,
     isFavorite,
     favoriteFoods,
+    // Recipe management
+    recipes,
+    addRecipe,
+    updateRecipe,
+    deleteRecipe,
+    searchRecipes,
+    recipeEntries,
+    addRecipeEntry,
+    removeRecipeEntry,
+    favoriteRecipes,
+    toggleRecipeFavorite,
+    isRecipeFavorite,
+    getFavoriteRecipes,
+    getRecipesByCategory,
+    getRecipesByTag,
+    calculateRecipeNutrition,
+    importRecipeFromUrl,
   };
 });
 

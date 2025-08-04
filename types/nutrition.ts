@@ -131,3 +131,45 @@ export interface BarcodeProduct {
   imageUrl?: string;
   ingredients?: string[];
 }
+
+export interface RecipeIngredient {
+  id: string;
+  foodItem: FoodItem;
+  quantity: number;
+  unit: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  description?: string;
+  servings: number;
+  prepTime?: number; // minutes
+  cookTime?: number; // minutes
+  difficulty?: 'easy' | 'medium' | 'hard';
+  category?: string;
+  tags?: string[];
+  ingredients: RecipeIngredient[];
+  instructions?: string[];
+  imageUrl?: string;
+  sourceUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  nutritionPerServing: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber?: number;
+    sugar?: number;
+    sodium?: number;
+  };
+}
+
+export interface RecipeEntry {
+  id: string;
+  recipe: Recipe;
+  servings: number;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  date: string; // ISO string
+}

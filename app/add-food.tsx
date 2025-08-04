@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Camera, Sparkles, Search, Scan } from 'lucide-react-native';
+import { Plus, Camera, Sparkles, Search, Scan, Clock, Star } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 import { SearchBar } from '@/components/SearchBar';
@@ -11,25 +11,42 @@ import { useNutrition } from '@/hooks/useNutritionStore';
 export default function AddFoodScreen() {
   const router = useRouter();
   const { mealType } = useLocalSearchParams<{ mealType: MealEntry['mealType'] }>();
-  const { searchFoodItems, addMealEntry } = useNutrition();
+  const { searchFoodItems, addMealEntry, getFrequentFoods, getFavorites } = useNutrition();
   
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
   const [aiSearchResults, setAiSearchResults] = useState<FoodItem[]>([]);
   const [isAiSearching, setIsAiSearching] = useState<boolean>(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'favorites'>('all');
+  
+  // Get frequent and favorite foods
+  const frequentFoods = useMemo(() => getFrequentFoods(), [getFrequentFoods]);
+  const favoriteFoods = useMemo(() => getFavorites(), [getFavorites]);
   
   useEffect(() => {
     if (searchQuery.trim()) {
-      const localResults = searchFoodItems(searchQuery);
+      let localResults = searchFoodItems(searchQuery);
+      
+      // Apply filters
+      if (activeFilter === 'recent') {
+        const frequentIds = new Set(frequentFoods.map(f => f.id));
+        localResults = localResults.filter(item => frequentIds.has(item.id));
+      } else if (activeFilter === 'favorites') {
+        const favoriteIds = new Set(favoriteFoods.map(f => f.id));
+        localResults = localResults.filter(item => favoriteIds.has(item.id));
+      }
+      
       setSearchResults(localResults);
       
       // Trigger AI search for better results
-      performAiSearch(searchQuery);
+      if (searchQuery.length >= 3) {
+        performAiSearch(searchQuery);
+      }
     } else {
       setSearchResults([]);
       setAiSearchResults([]);
     }
-  }, [searchQuery, searchFoodItems]);
+  }, [searchQuery, searchFoodItems, activeFilter, frequentFoods, favoriteFoods]);
   
   const performAiSearch = async (query: string) => {
     if (query.length < 3) return;
@@ -90,6 +107,20 @@ export default function AddFoodScreen() {
   const handleAddFood = (foodItem: FoodItem) => {
     if (!mealType) return;
     
+    // Navigate to food details for serving size adjustment
+    router.push({
+      pathname: '/food-details',
+      params: {
+        foodId: foodItem.id,
+        mealType: mealType,
+        source: 'search'
+      }
+    });
+  };
+  
+  const handleQuickAdd = (foodItem: FoodItem) => {
+    if (!mealType) return;
+    
     const today = new Date().toISOString().split('T')[0];
     
     addMealEntry({
@@ -102,33 +133,150 @@ export default function AddFoodScreen() {
     router.back();
   };
   
-  const renderFoodItem = ({ item, isAiResult = false }: { item: FoodItem; isAiResult?: boolean }) => (
-    <TouchableOpacity 
-      style={[styles.foodItem, isAiResult && styles.aiFoodItem]} 
-      onPress={() => handleAddFood(item)}
-      testID={`add-food-item-${item.id}`}
-    >
-      <View style={styles.foodInfo}>
-        <View style={styles.foodNameContainer}>
-          <Text style={styles.foodName}>{item.name}</Text>
-          {isAiResult && <Sparkles size={16} color={colors.secondary} />}
-        </View>
-        {item.brand && <Text style={styles.foodBrand}>{item.brand}</Text>}
-        <Text style={styles.foodServing}>
-          {item.servingSize} {item.servingUnit} | {item.calories} kcal
-        </Text>
-        <Text style={styles.macros}>
-          P: {item.protein}g • C: {item.carbs}g • F: {item.fat}g
-        </Text>
-      </View>
+  const renderFoodItem = ({ item, isAiResult = false, showQuickAdd = false }: { item: FoodItem; isAiResult?: boolean; showQuickAdd?: boolean }) => {
+    const isFrequent = frequentFoods.some(f => f.id === item.id);
+    const isFavorite = favoriteFoods.some(f => f.id === item.id);
+    
+    return (
       <TouchableOpacity 
-        style={styles.addButton}
+        style={[styles.foodItem, isAiResult && styles.aiFoodItem]} 
         onPress={() => handleAddFood(item)}
-        testID={`add-button-${item.id}`}
+        testID={`add-food-item-${item.id}`}
       >
-        <Plus size={20} color={colors.white} />
+        <View style={styles.foodInfo}>
+          <View style={styles.foodNameContainer}>
+            <Text style={styles.foodName}>{item.name}</Text>
+            <View style={styles.badges}>
+              {isFrequent && <Clock size={14} color={colors.primary} />}
+              {isFavorite && <Star size={14} color={colors.secondary} />}
+              {isAiResult && <Sparkles size={14} color={colors.secondary} />}
+            </View>
+          </View>
+          {item.brand && <Text style={styles.foodBrand}>{item.brand}</Text>}
+          <Text style={styles.foodServing}>
+            {item.servingSize} {item.servingUnit} | {item.calories} kcal
+          </Text>
+          <Text style={styles.macros}>
+            P: {item.protein}g • C: {item.carbs}g • F: {item.fat}g
+          </Text>
+        </View>
+        <View style={styles.actionButtons}>
+          {showQuickAdd && (
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.quickAddButton]}
+              onPress={() => handleQuickAdd(item)}
+              testID={`quick-add-${item.id}`}
+            >
+              <Plus size={16} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => handleAddFood(item)}
+            testID={`add-button-${item.id}`}
+          >
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
+    );
+  };
+  
+  const renderQuickActions = () => (
+    <View style={styles.quickActionsContainer}>
+      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.scanButton}
+          onPress={() => router.push({ pathname: '/ai-food-scan', params: { mealType } })}
+          testID="scan-food-button"
+        >
+          <Camera size={20} color={colors.white} />
+          <Text style={styles.scanButtonText}>Scan Food</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.scanButton, styles.barcodeButton]}
+          onPress={() => router.push({ pathname: '/barcode-scanner', params: { mealType } })}
+          testID="barcode-scan-button"
+        >
+          <Scan size={20} color={colors.white} />
+          <Text style={styles.scanButtonText}>Scan Barcode</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.scanButton, styles.createButton]}
+          onPress={() => router.push({ pathname: '/create-food', params: { mealType } })}
+          testID="create-food-button"
+        >
+          <Plus size={20} color={colors.white} />
+          <Text style={styles.scanButtonText}>Create Food</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+  
+  const renderFrequentFoods = () => {
+    if (frequentFoods.length === 0) return null;
+    
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Foods</Text>
+          <Clock size={16} color={colors.primary} />
+        </View>
+        <FlatList
+          data={frequentFoods.slice(0, 5)}
+          renderItem={({ item }) => renderFoodItem({ item, showQuickAdd: true })}
+          keyExtractor={(item) => `frequent-${item.id}`}
+          scrollEnabled={false}
+        />
+      </View>
+    );
+  };
+  
+  const renderFavoriteFoods = () => {
+    if (favoriteFoods.length === 0) return null;
+    
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Favorite Foods</Text>
+          <Star size={16} color={colors.secondary} />
+        </View>
+        <FlatList
+          data={favoriteFoods.slice(0, 5)}
+          renderItem={({ item }) => renderFoodItem({ item, showQuickAdd: true })}
+          keyExtractor={(item) => `favorite-${item.id}`}
+          scrollEnabled={false}
+        />
+      </View>
+    );
+  };
+  
+  const renderFilterButtons = () => (
+    <View style={styles.filterContainer}>
+      <TouchableOpacity
+        style={[styles.filterButton, activeFilter === 'all' && styles.activeFilter]}
+        onPress={() => setActiveFilter('all')}
+      >
+        <Text style={[styles.filterText, activeFilter === 'all' && styles.activeFilterText]}>All</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.filterButton, activeFilter === 'recent' && styles.activeFilter]}
+        onPress={() => setActiveFilter('recent')}
+      >
+        <Clock size={14} color={activeFilter === 'recent' ? colors.white : colors.darkGray} />
+        <Text style={[styles.filterText, activeFilter === 'recent' && styles.activeFilterText]}>Recent</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.filterButton, activeFilter === 'favorites' && styles.activeFilter]}
+        onPress={() => setActiveFilter('favorites')}
+      >
+        <Star size={14} color={activeFilter === 'favorites' ? colors.white : colors.darkGray} />
+        <Text style={[styles.filterText, activeFilter === 'favorites' && styles.activeFilterText]}>Favorites</Text>
+      </TouchableOpacity>
+    </View>
   );
   
   const renderEmptyList = () => (
@@ -137,30 +285,11 @@ export default function AddFoodScreen() {
         <View>
           <Search size={48} color={colors.mediumGray} style={styles.emptyIcon} />
           <Text style={styles.emptyText}>No food items found.</Text>
-          <Text style={styles.emptySubtext}>Try a different search term or use AI scanning.</Text>
+          <Text style={styles.emptySubtext}>Try a different search term or create a custom food item.</Text>
         </View>
       ) : (
         <View>
           <Text style={styles.emptyText}>Search for food items to add to your meal.</Text>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.scanButton}
-              onPress={() => router.push({ pathname: '/ai-food-scan', params: { mealType } })}
-              testID="scan-food-button"
-            >
-              <Camera size={20} color={colors.white} />
-              <Text style={styles.scanButtonText}>Scan Food with AI</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.scanButton, styles.barcodeButton]}
-              onPress={() => router.push({ pathname: '/barcode-scanner', params: { mealType } })}
-              testID="barcode-scan-button"
-            >
-              <Scan size={20} color={colors.white} />
-              <Text style={styles.scanButtonText}>Scan Barcode</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       )}
     </View>
@@ -191,33 +320,45 @@ export default function AddFoodScreen() {
         placeholder="Search for food..."
       />
       
-      {searchQuery.trim() && searchResults.length > 0 && (
-        <View>
-          {renderSectionHeader('Local Database')}
-          <FlatList
-            data={searchResults}
-            renderItem={({ item }) => renderFoodItem({ item, isAiResult: false })}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-          />
-        </View>
-      )}
+      {searchQuery.trim() && renderFilterButtons()}
       
-      {searchQuery.trim() && aiSearchResults.length > 0 && (
-        <View>
-          {renderSectionHeader('AI Suggestions', true)}
-          <FlatList
-            data={aiSearchResults}
-            renderItem={({ item }) => renderFoodItem({ item, isAiResult: true })}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-          />
-        </View>
-      )}
-      
-      {(!searchQuery.trim() || (searchResults.length === 0 && aiSearchResults.length === 0 && !isAiSearching)) && (
-        renderEmptyList()
-      )}
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {!searchQuery.trim() && (
+          <>
+            {renderQuickActions()}
+            {renderFrequentFoods()}
+            {renderFavoriteFoods()}
+          </>
+        )}
+        
+        {searchQuery.trim() && searchResults.length > 0 && (
+          <View style={styles.section}>
+            {renderSectionHeader('Search Results')}
+            <FlatList
+              data={searchResults}
+              renderItem={({ item }) => renderFoodItem({ item, isAiResult: false })}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
+        
+        {searchQuery.trim() && aiSearchResults.length > 0 && (
+          <View style={styles.section}>
+            {renderSectionHeader('AI Suggestions', true)}
+            <FlatList
+              data={aiSearchResults}
+              renderItem={({ item }) => renderFoodItem({ item, isAiResult: true })}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
+        
+        {searchQuery.trim() && searchResults.length === 0 && aiSearchResults.length === 0 && !isAiSearching && (
+          renderEmptyList()
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -277,11 +418,79 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: colors.primary,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickAddButton: {
+    backgroundColor: colors.lightGray,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  badges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  quickActionsContainer: {
+    padding: 16,
+    backgroundColor: colors.white,
+    marginBottom: 8,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.lightGray,
+    gap: 4,
+  },
+  activeFilter: {
+    backgroundColor: colors.primary,
+  },
+  filterText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.darkGray,
+  },
+  activeFilterText: {
+    color: colors.white,
+  },
+  createButton: {
+    backgroundColor: colors.success,
   },
   emptyContainer: {
     padding: 24,

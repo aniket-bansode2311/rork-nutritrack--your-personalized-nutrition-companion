@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Minus, Plus, Trash2, Scan } from 'lucide-react-native';
+import { Minus, Plus, Trash2, Scan, Star, Heart } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 import { useNutrition } from '@/hooks/useNutritionStore';
@@ -10,20 +10,21 @@ import type { FoodItem, MealEntry } from '@/types/nutrition';
 
 export default function FoodDetailsScreen() {
   const router = useRouter();
-  const { entryId, foodData, source, mealType } = useLocalSearchParams<{ 
+  const { entryId, foodData, source, mealType, foodId } = useLocalSearchParams<{ 
     entryId?: string;
     foodData?: string;
     source?: string;
     mealType?: MealEntry['mealType'];
+    foodId?: string;
   }>();
-  const { mealEntries, updateMealEntry, removeMealEntry, addMealEntry } = useNutrition();
+  const { mealEntries, updateMealEntry, removeMealEntry, addMealEntry, foodItems, customFoods, toggleFavorite, isFavorite } = useNutrition();
   
   // Initialize state first
   const [servings, setServings] = useState<number>(1);
   
   // Determine data source and get food item
   const entry = entryId ? mealEntries.find((entry) => entry.id === entryId) : null;
-  const isNewItem = !entryId && !!foodData;
+  const isNewItem = !entryId && (!!foodData || !!foodId);
   
   let foodItem: FoodItem | null = null;
   
@@ -35,6 +36,10 @@ export default function FoodDetailsScreen() {
     } catch (error) {
       console.error('Failed to parse food data:', error);
     }
+  } else if (foodId) {
+    // Find food item by ID from both regular and custom foods
+    const allFoods = [...foodItems, ...customFoods];
+    foodItem = allFoods.find(food => food.id === foodId) || null;
   }
   
   // Update servings state when entry changes
@@ -59,6 +64,24 @@ export default function FoodDetailsScreen() {
   const handleUpdateServings = (newServings: number) => {
     if (newServings <= 0) return;
     setServings(newServings);
+  };
+  
+  const handleToggleFavorite = () => {
+    if (foodItem) {
+      toggleFavorite(foodItem.id);
+    }
+  };
+  
+  const getServingSizeOptions = () => {
+    const unit = foodItem?.servingUnit || 'g';
+    
+    return [
+      { label: `0.5 ${unit === 'piece' || unit === 'slice' ? unit : 'serving'}`, value: 0.5 },
+      { label: `1 ${unit === 'piece' || unit === 'slice' ? unit : 'serving'}`, value: 1 },
+      { label: `1.5 ${unit === 'piece' || unit === 'slice' ? unit : 'serving'}`, value: 1.5 },
+      { label: `2 ${unit === 'piece' || unit === 'slice' ? unit : 'serving'}`, value: 2 },
+      { label: `3 ${unit === 'piece' || unit === 'slice' ? unit : 'serving'}`, value: 3 },
+    ];
   };
   
   const handleSave = () => {
@@ -114,7 +137,20 @@ export default function FoodDetailsScreen() {
         <View style={styles.foodHeader}>
           <View style={styles.foodHeaderContent}>
             <View style={styles.foodInfo}>
-              <Text style={styles.foodName}>{foodItem.name}</Text>
+              <View style={styles.foodNameRow}>
+                <Text style={styles.foodName}>{foodItem.name}</Text>
+                <TouchableOpacity
+                  style={styles.favoriteButton}
+                  onPress={handleToggleFavorite}
+                  testID="favorite-button"
+                >
+                  <Heart 
+                    size={24} 
+                    color={isFavorite(foodItem.id) ? colors.error : colors.mediumGray}
+                    fill={isFavorite(foodItem.id) ? colors.error : 'transparent'}
+                  />
+                </TouchableOpacity>
+              </View>
               {foodItem.brand && (
                 <Text style={styles.foodBrand}>{foodItem.brand}</Text>
               )}
@@ -122,6 +158,12 @@ export default function FoodDetailsScreen() {
                 <View style={styles.barcodeInfo}>
                   <Scan size={16} color={colors.mediumGray} />
                   <Text style={styles.barcodeText}>Barcode: {(foodItem as any).barcode}</Text>
+                </View>
+              )}
+              {foodItem.id.startsWith('custom-') && (
+                <View style={styles.customBadge}>
+                  <Star size={14} color={colors.secondary} />
+                  <Text style={styles.customText}>Custom Food</Text>
                 </View>
               )}
             </View>
@@ -137,14 +179,37 @@ export default function FoodDetailsScreen() {
         
         <View style={styles.servingSection}>
           <Text style={styles.sectionTitle}>Serving Size</Text>
+          
+          {/* Quick serving options */}
+          <View style={styles.quickServings}>
+            {getServingSizeOptions().map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.quickServingButton,
+                  servings === option.value && styles.activeQuickServing
+                ]}
+                onPress={() => setServings(option.value)}
+              >
+                <Text style={[
+                  styles.quickServingText,
+                  servings === option.value && styles.activeQuickServingText
+                ]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          {/* Manual serving controls */}
           <View style={styles.servingControls}>
             <TouchableOpacity 
               style={styles.servingButton}
-              onPress={() => handleUpdateServings(servings - 0.5)}
-              disabled={servings <= 0.5}
+              onPress={() => handleUpdateServings(servings - 0.25)}
+              disabled={servings <= 0.25}
               testID="decrease-serving"
             >
-              <Minus size={20} color={servings <= 0.5 ? colors.mediumGray : colors.text} />
+              <Minus size={20} color={servings <= 0.25 ? colors.mediumGray : colors.text} />
             </TouchableOpacity>
             
             <TextInput
@@ -162,7 +227,7 @@ export default function FoodDetailsScreen() {
             
             <TouchableOpacity 
               style={styles.servingButton}
-              onPress={() => handleUpdateServings(servings + 0.5)}
+              onPress={() => handleUpdateServings(servings + 0.25)}
               testID="increase-serving"
             >
               <Plus size={20} color={colors.text} />
@@ -460,5 +525,50 @@ const styles = StyleSheet.create({
   },
   fullWidthButton: {
     marginRight: 0,
+  },
+  foodNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  favoriteButton: {
+    padding: 4,
+  },
+  customBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  customText: {
+    fontSize: 12,
+    color: colors.secondary,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  quickServings: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  quickServingButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.lightGray,
+    borderWidth: 1,
+    borderColor: colors.lightGray,
+  },
+  activeQuickServing: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  quickServingText: {
+    fontSize: 12,
+    color: colors.darkGray,
+    fontWeight: '500',
+  },
+  activeQuickServingText: {
+    color: colors.white,
   },
 });

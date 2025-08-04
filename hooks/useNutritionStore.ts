@@ -34,6 +34,8 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const [foodItems, setFoodItems] = useState<FoodItem[]>(mockFoodItems);
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [favoriteFoods, setFavoriteFoods] = useState<string[]>([]);
+  const [customFoods, setCustomFoods] = useState<FoodItem[]>([]);
 
   // Load data from AsyncStorage on mount
   useEffect(() => {
@@ -42,6 +44,8 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         const storedUserProfile = await AsyncStorage.getItem('userProfile');
         const storedMealEntries = await AsyncStorage.getItem('mealEntries');
         const storedFoodItems = await AsyncStorage.getItem('foodItems');
+        const storedFavoriteFoods = await AsyncStorage.getItem('favoriteFoods');
+        const storedCustomFoods = await AsyncStorage.getItem('customFoods');
 
         if (storedUserProfile) {
           setUserProfile(JSON.parse(storedUserProfile));
@@ -51,6 +55,12 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         }
         if (storedFoodItems) {
           setFoodItems(JSON.parse(storedFoodItems));
+        }
+        if (storedFavoriteFoods) {
+          setFavoriteFoods(JSON.parse(storedFavoriteFoods));
+        }
+        if (storedCustomFoods) {
+          setCustomFoods(JSON.parse(storedCustomFoods));
         }
       } catch (error) {
         console.error('Error loading data from AsyncStorage:', error);
@@ -69,6 +79,8 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         await AsyncStorage.setItem('userProfile', JSON.stringify(userProfile));
         await AsyncStorage.setItem('mealEntries', JSON.stringify(mealEntries));
         await AsyncStorage.setItem('foodItems', JSON.stringify(foodItems));
+        await AsyncStorage.setItem('favoriteFoods', JSON.stringify(favoriteFoods));
+        await AsyncStorage.setItem('customFoods', JSON.stringify(customFoods));
       } catch (error) {
         console.error('Error saving data to AsyncStorage:', error);
       }
@@ -77,7 +89,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     if (!isLoading) {
       saveData();
     }
-  }, [userProfile, mealEntries, foodItems, isLoading]);
+  }, [userProfile, mealEntries, foodItems, favoriteFoods, customFoods, isLoading]);
 
   // Get meals for the selected date
   const getMealsForDate = (date: string) => {
@@ -122,11 +134,12 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     setUserProfile((prev) => ({ ...prev, ...updates }));
   };
 
-  // Search food items
+  // Search food items (includes custom foods)
   const searchFoodItems = (query: string) => {
     if (!query.trim()) return [];
     const lowerQuery = query.toLowerCase().trim();
-    return foodItems.filter(
+    const allFoods = [...foodItems, ...customFoods];
+    return allFoods.filter(
       (item) =>
         item.name.toLowerCase().includes(lowerQuery) ||
         (item.brand && item.brand.toLowerCase().includes(lowerQuery))
@@ -137,10 +150,72 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const addFoodItem = (item: Omit<FoodItem, 'id'>) => {
     const newItem: FoodItem = {
       ...item,
-      id: Date.now().toString(),
+      id: `custom-${Date.now()}`,
     };
-    setFoodItems((prev) => [...prev, newItem]);
+    setCustomFoods((prev) => [...prev, newItem]);
     return newItem;
+  };
+  
+  // Get frequent foods based on meal entries
+  const getFrequentFoods = () => {
+    const foodCounts = new Map<string, { count: number; food: FoodItem; lastUsed: string }>();
+    const allFoods = [...foodItems, ...customFoods];
+    
+    // Count food usage in the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    mealEntries.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate >= thirtyDaysAgo) {
+        const existing = foodCounts.get(entry.foodItem.id);
+        if (existing) {
+          existing.count++;
+          if (entry.date > existing.lastUsed) {
+            existing.lastUsed = entry.date;
+          }
+        } else {
+          foodCounts.set(entry.foodItem.id, {
+            count: 1,
+            food: entry.foodItem,
+            lastUsed: entry.date
+          });
+        }
+      }
+    });
+    
+    // Sort by usage count and recency
+    return Array.from(foodCounts.values())
+      .sort((a, b) => {
+        if (a.count !== b.count) {
+          return b.count - a.count; // Higher count first
+        }
+        return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime(); // More recent first
+      })
+      .map(item => item.food)
+      .slice(0, 10); // Return top 10
+  };
+  
+  // Get favorite foods
+  const getFavorites = () => {
+    const allFoods = [...foodItems, ...customFoods];
+    return allFoods.filter(food => favoriteFoods.includes(food.id));
+  };
+  
+  // Toggle favorite status
+  const toggleFavorite = (foodId: string) => {
+    setFavoriteFoods(prev => {
+      if (prev.includes(foodId)) {
+        return prev.filter(id => id !== foodId);
+      } else {
+        return [...prev, foodId];
+      }
+    });
+  };
+  
+  // Check if food is favorite
+  const isFavorite = (foodId: string) => {
+    return favoriteFoods.includes(foodId);
   };
 
   return {
@@ -151,12 +226,18 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     removeMealEntry,
     updateMealEntry,
     foodItems,
+    customFoods,
     searchFoodItems,
     addFoodItem,
     selectedDate,
     setSelectedDate,
     getDailyLog,
     isLoading,
+    getFrequentFoods,
+    getFavorites,
+    toggleFavorite,
+    isFavorite,
+    favoriteFoods,
   };
 });
 

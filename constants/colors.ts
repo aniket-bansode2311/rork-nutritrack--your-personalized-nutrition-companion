@@ -7,6 +7,7 @@ export const colors = {
   mediumGray: "#ADB5BD",
   darkGray: "#6C757D",
   danger: "#E76F51",
+  error: "#E76F51",
   white: "#FFFFFF",
   black: "#000000",
   success: "#43AA8B",

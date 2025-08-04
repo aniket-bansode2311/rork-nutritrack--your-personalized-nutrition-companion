@@ -1,0 +1,116 @@
+export interface NutritionGoals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  weight: number;
+  height: number;
+  age: number;
+  gender: 'male' | 'female' | 'other';
+  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very active';
+  goal: 'lose' | 'maintain' | 'gain';
+  nutritionGoals: NutritionGoals;
+  dietaryPreferences?: DietaryPreferences;
+  notifications?: NotificationSettings;
+  privacy?: PrivacySettings;
+  healthIntegrations?: HealthIntegrations;
+}
+
+export interface DietaryPreferences {
+  vegetarian: boolean;
+  vegan: boolean;
+  glutenFree: boolean;
+  dairyFree: boolean;
+  keto: boolean;
+  paleo: boolean;
+  lowCarb: boolean;
+  lowFat: boolean;
+  allergies: string[];
+  dislikes: string[];
+}
+
+export interface NotificationSettings {
+  mealReminders: boolean;
+  waterReminders: boolean;
+  goalAchievements: boolean;
+  weeklyReports: boolean;
+  mealReminderTimes: {
+    breakfast: string;
+    lunch: string;
+    dinner: string;
+  };
+  waterReminderInterval: number; // minutes
+}
+
+export interface PrivacySettings {
+  dataSharing: boolean;
+  analyticsOptOut: boolean;
+  profileVisibility: 'private' | 'friends' | 'public';
+  allowDataExport: boolean;
+  allowDataDeletion: boolean;
+}
+
+export interface HealthIntegrations {
+  appleHealth: {
+    enabled: boolean;
+    syncWeight: boolean;
+    syncActivity: boolean;
+    syncNutrition: boolean;
+  };
+  googleFit: {
+    enabled: boolean;
+    syncWeight: boolean;
+    syncActivity: boolean;
+    syncNutrition: boolean;
+  };
+  fitbit: {
+    enabled: boolean;
+    syncWeight: boolean;
+    syncActivity: boolean;
+  };
+}
+
+export interface FoodItem {
+  id: string;
+  name: string;
+  brand?: string;
+  servingSize: number;
+  servingUnit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  cholesterol?: number;
+  potassium?: number;
+  vitaminA?: number;
+  vitaminC?: number;
+  calcium?: number;
+  iron?: number;
+}
+
+export interface MealEntry {
+  id: string;
+  foodItem: FoodItem;
+  servings: number;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  date: string; // ISO string
+}
+
+export interface DailyLog {
+  date: string; // ISO string
+  meals: MealEntry[];
+  totalNutrition: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}

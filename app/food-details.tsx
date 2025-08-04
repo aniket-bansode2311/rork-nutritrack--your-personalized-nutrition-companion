@@ -108,6 +108,11 @@ export default function FoodDetailsScreen() {
       return;
     }
     
+    if (!entry) {
+      router.back();
+      return;
+    }
+    
     Alert.alert(
       'Delete Food Item',
       'Are you sure you want to remove this food item from your diary?',

@@ -108,6 +108,21 @@ function RootLayoutNav() {
           headerTintColor: "#2A9D8F",
         }} 
       />
+      <Stack.Screen 
+        name="food-recognition-results" 
+        options={{ 
+          title: "Recognition Results",
+          headerTintColor: "#2A9D8F",
+        }} 
+      />
+      <Stack.Screen 
+        name="barcode-scanner" 
+        options={{ 
+          title: "Scan Barcode",
+          headerTintColor: "#2A9D8F",
+          headerShown: false,
+        }} 
+      />
     </Stack>
   );
 }

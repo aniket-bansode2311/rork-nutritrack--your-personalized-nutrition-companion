@@ -129,7 +129,7 @@ export default function RecipesScreen() {
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
-            <Search color={colors.gray} size={20} />
+            <Search color={colors.mediumGray} size={20} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search recipes..."
@@ -144,7 +144,7 @@ export default function RecipesScreen() {
         <View style={styles.importContainer}>
           <Text style={styles.sectionTitle}>Import Recipe</Text>
           <View style={styles.importInputContainer}>
-            <Link color={colors.gray} size={20} />
+            <Link color={colors.mediumGray} size={20} />
             <TextInput
               style={styles.importInput}
               placeholder="Paste recipe URL here..."
@@ -228,7 +228,7 @@ export default function RecipesScreen() {
               testID="favorites-toggle"
             >
               <Heart
-                color={showFavoritesOnly ? colors.error : colors.gray}
+                color={showFavoritesOnly ? colors.error : colors.mediumGray}
                 fill={showFavoritesOnly ? colors.error : 'transparent'}
                 size={20}
               />
@@ -252,7 +252,7 @@ export default function RecipesScreen() {
 
           {filteredRecipes.length === 0 ? (
             <View style={styles.emptyState}>
-              <ChefHat color={colors.gray} size={64} />
+              <ChefHat color={colors.mediumGray} size={64} />
               <Text style={styles.emptyStateTitle}>No recipes found</Text>
               <Text style={styles.emptyStateText}>
                 Try adjusting your search or filters, or create a new recipe!

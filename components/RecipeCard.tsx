@@ -28,7 +28,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
       case 'hard':
         return colors.error;
       default:
-        return colors.gray;
+        return colors.mediumGray;
     }
   };
 
@@ -46,7 +46,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           <Image source={{ uri: recipe.imageUrl }} style={styles.image} />
         ) : (
           <View style={styles.placeholderImage}>
-            <ChefHat color={colors.gray} size={32} />
+            <ChefHat color={colors.mediumGray} size={32} />
           </View>
         )}
         <TouchableOpacity
@@ -82,12 +82,12 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
 
         <View style={styles.metadata}>
           <View style={styles.metadataItem}>
-            <Users color={colors.gray} size={16} />
+            <Users color={colors.mediumGray} size={16} />
             <Text style={styles.metadataText}>{recipe.servings} servings</Text>
           </View>
           {totalTime > 0 && (
             <View style={styles.metadataItem}>
-              <Clock color={colors.gray} size={16} />
+              <Clock color={colors.mediumGray} size={16} />
               <Text style={styles.metadataText}>{totalTime} min</Text>
             </View>
           )}
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   metadataText: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginLeft: 4,
   },
   nutrition: {
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   moreTagsText: {
     fontSize: 12,
-    color: colors.gray,
+    color: colors.mediumGray,
     fontStyle: 'italic',
   },
 });

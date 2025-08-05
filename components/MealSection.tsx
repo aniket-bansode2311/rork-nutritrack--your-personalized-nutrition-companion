@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   },
   recipeDetails: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginLeft: 24,
   },
   removeRecipeButton: {

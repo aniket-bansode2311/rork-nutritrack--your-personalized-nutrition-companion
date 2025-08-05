@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   },
   favoritesToggleText: {
     fontSize: 16,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginLeft: 8,
   },
   favoritesToggleTextActive: {
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
   resultsCount: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginBottom: 16,
   },
   emptyState: {
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    color: colors.gray,
+    color: colors.mediumGray,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,

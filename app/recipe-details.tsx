@@ -45,7 +45,7 @@ export default function RecipeDetailsScreen() {
       <View style={styles.container}>
         <Stack.Screen options={{ title: 'Recipe Not Found' }} />
         <View style={styles.errorContainer}>
-          <ChefHat color={colors.gray} size={64} />
+          <ChefHat color={colors.mediumGray} size={64} />
           <Text style={styles.errorTitle}>Recipe not found</Text>
           <Text style={styles.errorText}>
             The recipe you&apos;re looking for doesn&apos;t exist or has been removed.
@@ -120,7 +120,7 @@ export default function RecipeDetailsScreen() {
       case 'hard':
         return colors.error;
       default:
-        return colors.gray;
+        return colors.mediumGray;
     }
   };
 
@@ -178,7 +178,7 @@ export default function RecipeDetailsScreen() {
             <Image source={{ uri: recipe.imageUrl }} style={styles.image} />
           ) : (
             <View style={styles.placeholderImage}>
-              <ChefHat color={colors.gray} size={64} />
+              <ChefHat color={colors.mediumGray} size={64} />
             </View>
           )}
         </View>
@@ -201,18 +201,18 @@ export default function RecipeDetailsScreen() {
           {/* Metadata */}
           <View style={styles.metadata}>
             <View style={styles.metadataItem}>
-              <Users color={colors.gray} size={20} />
+              <Users color={colors.mediumGray} size={20} />
               <Text style={styles.metadataText}>{recipe.servings} servings</Text>
             </View>
             {recipe.prepTime && (
               <View style={styles.metadataItem}>
-                <Clock color={colors.gray} size={20} />
+                <Clock color={colors.mediumGray} size={20} />
                 <Text style={styles.metadataText}>Prep: {recipe.prepTime} min</Text>
               </View>
             )}
             {recipe.cookTime && (
               <View style={styles.metadataItem}>
-                <Clock color={colors.gray} size={20} />
+                <Clock color={colors.mediumGray} size={20} />
                 <Text style={styles.metadataText}>Cook: {recipe.cookTime} min</Text>
               </View>
             )}
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: colors.gray,
+    color: colors.mediumGray,
     lineHeight: 24,
     marginBottom: 16,
   },
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   },
   metadataText: {
     fontSize: 16,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginLeft: 8,
   },
   totalTimeContainer: {
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   nutritionLabel: {
     fontSize: 12,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginTop: 4,
   },
   ingredientsContainer: {
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: colors.gray,
+    color: colors.mediumGray,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,

@@ -79,7 +79,7 @@ export default function EditRecipeScreen() {
       <View style={styles.container}>
         <Stack.Screen options={{ title: 'Recipe Not Found' }} />
         <View style={styles.errorContainer}>
-          <ChefHat color={colors.gray} size={64} />
+          <ChefHat color={colors.mediumGray} size={64} />
           <Text style={styles.errorTitle}>Recipe not found</Text>
           <Text style={styles.errorText}>
             The recipe you&apos;re trying to edit doesn&apos;t exist or has been removed.
@@ -380,7 +380,7 @@ export default function EditRecipeScreen() {
           {activeIngredientId && (
             <View style={styles.searchContainer}>
               <View style={styles.searchInputContainer}>
-                <Search color={colors.gray} size={20} />
+                <Search color={colors.mediumGray} size={20} />
                 <TextInput
                   style={styles.searchInput}
                   value={searchQuery}
@@ -396,7 +396,7 @@ export default function EditRecipeScreen() {
                   }}
                   testID="close-search-button"
                 >
-                  <X color={colors.gray} size={20} />
+                  <X color={colors.mediumGray} size={20} />
                 </TouchableOpacity>
               </View>
 
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   },
   searchResultBrand: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginTop: 2,
   },
   ingredientRow: {
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
   },
   foodItemButtonText: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
   },
   foodItemButtonTextSelected: {
     color: colors.primary,
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
   },
   unitText: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     textAlign: 'center',
   },
   removeButton: {
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: colors.gray,
+    color: colors.mediumGray,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,

@@ -331,7 +331,7 @@ export default function CreateRecipeScreen() {
           {activeIngredientId && (
             <View style={styles.searchContainer}>
               <View style={styles.searchInputContainer}>
-                <Search color={colors.gray} size={20} />
+                <Search color={colors.mediumGray} size={20} />
                 <TextInput
                   style={styles.searchInput}
                   value={searchQuery}
@@ -347,7 +347,7 @@ export default function CreateRecipeScreen() {
                   }}
                   testID="close-search-button"
                 >
-                  <X color={colors.gray} size={20} />
+                  <X color={colors.mediumGray} size={20} />
                 </TouchableOpacity>
               </View>
 
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   },
   searchResultBrand: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     marginTop: 2,
   },
   ingredientRow: {
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   },
   foodItemButtonText: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
   },
   foodItemButtonTextSelected: {
     color: colors.primary,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   },
   unitText: {
     fontSize: 14,
-    color: colors.gray,
+    color: colors.mediumGray,
     textAlign: 'center',
   },
   removeButton: {

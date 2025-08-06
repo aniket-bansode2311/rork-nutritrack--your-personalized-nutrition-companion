@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { publicProcedure } from "../../../create-context";
+import { protectedProcedure } from "../../../create-context";
 
-export default publicProcedure
+export default protectedProcedure
   .input(z.object({ name: z.string() }))
-  .mutation(({ input }) => {
+  .query(({ input, ctx }) => {
     return {
-      hello: input.name,
+      greeting: `Hello ${input.name}! Your user ID is ${ctx.user.id}`,
       date: new Date(),
     };
   });

@@ -1,19 +1,38 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Settings, Camera, Sparkles } from 'lucide-react-native';
+import { Settings, Camera, Sparkles, Plus, TrendingUp, Target } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 import { CalorieCircle } from '@/components/CalorieCircle';
 import { DateSelector } from '@/components/DateSelector';
 import { NutritionSummary } from '@/components/NutritionSummary';
 import { HealthInsights } from '@/components/HealthInsights';
-import { useDailyNutrition, useNutrition } from '@/hooks/useNutritionStore';
+import { MealSection } from '@/components/MealSection';
+import { useDailyNutrition, useNutrition, useMealsByType } from '@/hooks/useNutritionStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { selectedDate, setSelectedDate, userProfile } = useNutrition();
-  const { total, goals } = useDailyNutrition();
+  const { total, goals, remaining } = useDailyNutrition();
+  
+  // Get meals by type for the selected date
+  const breakfastMeals = useMealsByType('breakfast');
+  const lunchMeals = useMealsByType('lunch');
+  const dinnerMeals = useMealsByType('dinner');
+  const snackMeals = useMealsByType('snack');
+  
+  // Calculate calories for each meal type
+  const calculateMealCalories = (meals: any[]) => {
+    return meals.reduce((total, meal) => {
+      return total + (meal.foodItem.calories * meal.servings);
+    }, 0);
+  };
+  
+  const breakfastCalories = calculateMealCalories(breakfastMeals);
+  const lunchCalories = calculateMealCalories(lunchMeals);
+  const dinnerCalories = calculateMealCalories(dinnerMeals);
+  const snackCalories = calculateMealCalories(snackMeals);
   
   const navigateToProfile = () => {
     router.push('/profile');
@@ -38,8 +57,30 @@ export default function DashboardScreen() {
           onDateChange={setSelectedDate} 
         />
         
+        {/* Daily Overview Cards */}
+        <View style={styles.overviewCards}>
+          <View style={styles.overviewCard}>
+            <View style={styles.cardIcon}>
+              <Target size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.cardValue}>{total.calories.toFixed(0)}</Text>
+            <Text style={styles.cardLabel}>Calories</Text>
+            <Text style={styles.cardSubtext}>{remaining.calories > 0 ? `${remaining.calories.toFixed(0)} left` : 'Goal reached!'}</Text>
+          </View>
+          
+          <View style={styles.overviewCard}>
+            <View style={styles.cardIcon}>
+              <TrendingUp size={20} color={colors.success} />
+            </View>
+            <Text style={styles.cardValue}>{total.protein.toFixed(0)}g</Text>
+            <Text style={styles.cardLabel}>Protein</Text>
+            <Text style={styles.cardSubtext}>{((total.protein / goals.protein) * 100).toFixed(0)}% of goal</Text>
+          </View>
+        </View>
+        
+        {/* Calorie Progress Circle */}
         <View style={styles.calorieSection}>
-          <Text style={styles.sectionTitle}>Daily Calories</Text>
+          <Text style={styles.sectionTitle}>Daily Progress</Text>
           <View style={styles.calorieCircleContainer}>
             <CalorieCircle 
               consumed={total.calories} 
@@ -48,6 +89,7 @@ export default function DashboardScreen() {
           </View>
         </View>
         
+        {/* Macronutrient Summary */}
         <NutritionSummary />
         
         <View style={styles.aiSection}>
@@ -68,36 +110,70 @@ export default function DashboardScreen() {
         
         <HealthInsights />
         
-        <View style={styles.quickAddSection}>
-          <Text style={styles.sectionTitle}>Quick Add</Text>
-          <View style={styles.mealButtons}>
+        {/* Meal Sections */}
+        <MealSection
+          title="Breakfast"
+          mealType="breakfast"
+          entries={breakfastMeals}
+          totalCalories={breakfastCalories}
+        />
+        
+        <MealSection
+          title="Lunch"
+          mealType="lunch"
+          entries={lunchMeals}
+          totalCalories={lunchCalories}
+        />
+        
+        <MealSection
+          title="Dinner"
+          mealType="dinner"
+          entries={dinnerMeals}
+          totalCalories={dinnerCalories}
+        />
+        
+        <MealSection
+          title="Snacks"
+          mealType="snack"
+          entries={snackMeals}
+          totalCalories={snackCalories}
+        />
+        
+        {/* Quick Actions */}
+        <View style={styles.quickActionsSection}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
             <TouchableOpacity 
-              style={styles.mealButton}
-              onPress={() => router.push({ pathname: '/add-food', params: { mealType: 'breakfast' } })}
-              testID="add-breakfast"
+              style={styles.quickActionButton}
+              onPress={() => router.push('/barcode-scanner')}
+              testID="barcode-scanner"
             >
-              <Text style={styles.mealButtonText}>Breakfast</Text>
+              <View style={styles.quickActionIcon}>
+                <Camera size={24} color={colors.white} />
+              </View>
+              <Text style={styles.quickActionText}>Scan Barcode</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity 
-              style={styles.mealButton}
-              onPress={() => router.push({ pathname: '/add-food', params: { mealType: 'lunch' } })}
-              testID="add-lunch"
+              style={styles.quickActionButton}
+              onPress={() => router.push('/create-food')}
+              testID="create-food"
             >
-              <Text style={styles.mealButtonText}>Lunch</Text>
+              <View style={styles.quickActionIcon}>
+                <Plus size={24} color={colors.white} />
+              </View>
+              <Text style={styles.quickActionText}>Create Food</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity 
-              style={styles.mealButton}
-              onPress={() => router.push({ pathname: '/add-food', params: { mealType: 'dinner' } })}
-              testID="add-dinner"
+              style={styles.quickActionButton}
+              onPress={() => router.push('/recipes')}
+              testID="view-recipes"
             >
-              <Text style={styles.mealButtonText}>Dinner</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.mealButton}
-              onPress={() => router.push({ pathname: '/add-food', params: { mealType: 'snack' } })}
-              testID="add-snack"
-            >
-              <Text style={styles.mealButtonText}>Snack</Text>
+              <View style={styles.quickActionIcon}>
+                <Sparkles size={24} color={colors.white} />
+              </View>
+              <Text style={styles.quickActionText}>My Recipes</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -133,6 +209,50 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingBottom: 32,
   },
+  overviewCards: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    gap: 12,
+  },
+  overviewCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  cardLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.darkGray,
+    marginBottom: 2,
+  },
+  cardSubtext: {
+    fontSize: 12,
+    color: colors.mediumGray,
+    textAlign: 'center',
+  },
   calorieSection: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -155,7 +275,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
   },
-  quickAddSection: {
+  quickActionsSection: {
     backgroundColor: colors.white,
     borderRadius: 12,
     marginHorizontal: 16,
@@ -167,24 +287,30 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  mealButtons: {
+  quickActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 12,
   },
-  mealButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    width: '48%',
+  quickActionButton: {
+    flex: 1,
     alignItems: 'center',
+    paddingVertical: 16,
   },
-  mealButtonText: {
-    color: colors.white,
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickActionText: {
+    fontSize: 12,
     fontWeight: '600',
-    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
   },
   aiSection: {
     backgroundColor: colors.white,

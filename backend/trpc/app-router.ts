@@ -10,6 +10,16 @@ import recipesCreateRoute from "./routes/recipes/create/route";
 import recipesListRoute from "./routes/recipes/list/route";
 import customFoodsCreateRoute from "./routes/custom-foods/create/route";
 import customFoodsListRoute from "./routes/custom-foods/list/route";
+import weightLogRoute from "./routes/progress/weight/log/route";
+import weightHistoryRoute from "./routes/progress/weight/history/route";
+import waterLogRoute from "./routes/progress/water/log/route";
+import waterHistoryRoute from "./routes/progress/water/history/route";
+import activityLogRoute from "./routes/progress/activity/log/route";
+import activityHistoryRoute from "./routes/progress/activity/history/route";
+import nutritionTrendsRoute from "./routes/progress/nutrition/trends/route";
+import measurementLogRoute from "./routes/progress/measurements/log/route";
+import measurementHistoryRoute from "./routes/progress/measurements/history/route";
+import progressStatsRoute from "./routes/progress/stats/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -32,6 +42,28 @@ export const appRouter = createTRPCRouter({
   customFoods: createTRPCRouter({
     create: customFoodsCreateRoute,
     list: customFoodsListRoute,
+  }),
+  progress: createTRPCRouter({
+    weight: createTRPCRouter({
+      log: weightLogRoute,
+      history: weightHistoryRoute,
+    }),
+    water: createTRPCRouter({
+      log: waterLogRoute,
+      history: waterHistoryRoute,
+    }),
+    activity: createTRPCRouter({
+      log: activityLogRoute,
+      history: activityHistoryRoute,
+    }),
+    nutrition: createTRPCRouter({
+      trends: nutritionTrendsRoute,
+    }),
+    measurements: createTRPCRouter({
+      log: measurementLogRoute,
+      history: measurementHistoryRoute,
+    }),
+    stats: progressStatsRoute,
   }),
 });
 

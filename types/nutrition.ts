@@ -173,3 +173,68 @@ export interface RecipeEntry {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   date: string; // ISO string
 }
+
+export interface WaterEntry {
+  id: string;
+  amount: number; // in ml
+  timestamp: string; // ISO string
+  userId: string;
+}
+
+export interface ActivityEntry {
+  id: string;
+  type: string; // 'walking', 'running', 'cycling', 'swimming', etc.
+  duration: number; // in minutes
+  caloriesBurned?: number;
+  distance?: number; // in km
+  intensity?: 'low' | 'moderate' | 'high';
+  timestamp: string; // ISO string
+  userId: string;
+}
+
+export interface WeightEntry {
+  id: string;
+  weight: number; // in kg
+  date: string; // ISO string
+  userId: string;
+}
+
+export interface BodyMeasurement {
+  id: string;
+  type: 'waist' | 'chest' | 'hips' | 'arms' | 'thighs' | 'neck';
+  measurement: number; // in cm
+  date: string; // ISO string
+  userId: string;
+}
+
+export interface NutritionTrend {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+}
+
+export interface ProgressData {
+  weightTrend: WeightEntry[];
+  nutritionTrend: NutritionTrend[];
+  waterIntake: WaterEntry[];
+  activities: ActivityEntry[];
+  bodyMeasurements: BodyMeasurement[];
+}
+
+export interface ProgressStats {
+  period: 'week' | 'month' | 'quarter' | 'year';
+  averageCalories: number;
+  averageProtein: number;
+  averageCarbs: number;
+  averageFat: number;
+  averageWater: number;
+  totalActivities: number;
+  totalCaloriesBurned: number;
+  weightChange: number;
+  goalAchievementRate: number;
+}

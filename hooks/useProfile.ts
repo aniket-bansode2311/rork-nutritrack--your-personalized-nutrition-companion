@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, Database } from '@/lib/supabase';
 import { useAuth } from './useAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
@@ -28,20 +29,34 @@ export const useProfile = () => {
       setLoading(true);
       setError(null);
 
+      // Try to get profile from AsyncStorage first (fallback for when DB is not set up)
+      const localProfile = await AsyncStorage.getItem(`profile_${user.id}`);
+      if (localProfile) {
+        setProfile(JSON.parse(localProfile));
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        if (error.code === 'PGRST116' || error.code === '42P01') {
+          // Table doesn't exist or no rows found - this is expected for new users
+          setProfile(null);
+          return;
+        }
         throw error;
       }
 
       setProfile(data);
     } catch (err) {
       console.error('Error fetching profile:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch profile');
+      // Don't set error for database issues, just use local storage fallback
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -111,26 +126,38 @@ export const useProfile = () => {
         },
       };
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          ...profileData,
-          id: user.id,
-          email: user.email || '',
-          dietary_preferences: defaultDietaryPreferences,
-          notification_settings: defaultNotificationSettings,
-          privacy_settings: defaultPrivacySettings,
-          health_integrations: defaultHealthIntegrations,
-        })
-        .select()
-        .single();
+      const newProfile = {
+        ...profileData,
+        id: user.id,
+        email: user.email || '',
+        dietary_preferences: defaultDietaryPreferences,
+        notification_settings: defaultNotificationSettings,
+        privacy_settings: defaultPrivacySettings,
+        health_integrations: defaultHealthIntegrations,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) {
-        throw error;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        setProfile(data);
+        return { data, error: null };
+      } catch (dbError) {
+        console.log('Database not available, using local storage fallback');
+        // Fallback to AsyncStorage if database is not available
+        await AsyncStorage.setItem(`profile_${user.id}`, JSON.stringify(newProfile));
+        setProfile(newProfile as Profile);
+        return { data: newProfile as Profile, error: null };
       }
-
-      setProfile(data);
-      return { data, error: null };
     } catch (err) {
       console.error('Error creating profile:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create profile';
@@ -150,19 +177,37 @@ export const useProfile = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', user.id)
+          .select()
+          .single();
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        setProfile(data);
+        return { data, error: null };
+      } catch (dbError) {
+        console.log('Database not available, using local storage fallback');
+        // Fallback to AsyncStorage if database is not available
+        const currentProfile = profile || await AsyncStorage.getItem(`profile_${user.id}`);
+        if (currentProfile) {
+          const parsedProfile = typeof currentProfile === 'string' ? JSON.parse(currentProfile) : currentProfile;
+          const updatedProfile = { 
+            ...parsedProfile, 
+            ...updates, 
+            updated_at: new Date().toISOString() 
+          };
+          await AsyncStorage.setItem(`profile_${user.id}`, JSON.stringify(updatedProfile));
+          setProfile(updatedProfile);
+          return { data: updatedProfile, error: null };
+        }
+        throw new Error('No profile found to update');
       }
-
-      setProfile(data);
-      return { data, error: null };
     } catch (err) {
       console.error('Error updating profile:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';

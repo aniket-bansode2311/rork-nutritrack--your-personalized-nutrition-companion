@@ -36,7 +36,7 @@ function RootLayoutNav() {
   if (user && !profileLoading && !profile) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)/onboarding" />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack>
     );
   }

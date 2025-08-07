@@ -14,7 +14,7 @@ import { useDailyNutrition, useNutrition, useMealsByType } from '@/hooks/useNutr
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { selectedDate, setSelectedDate, userProfile } = useNutrition();
+  const { selectedDate, setSelectedDate, userProfile, isLoading } = useNutrition();
   const { total, goals, remaining } = useDailyNutrition();
   
   // Get meals by type for the selected date
@@ -43,10 +43,18 @@ export default function DashboardScreen() {
     router.push('/goal-review');
   };
   
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.loadingText}>Loading your nutrition dashboard...</Text>
+      </View>
+    );
+  }
+  
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, {userProfile.name}</Text>
+        <Text style={styles.greeting}>Hello, {userProfile?.name || 'there'}</Text>
         <TouchableOpacity onPress={navigateToProfile} testID="profile-button">
           <Settings color={colors.text} size={24} />
         </TouchableOpacity>
@@ -352,5 +360,14 @@ const styles = StyleSheet.create({
     color: colors.darkGray,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.darkGray,
+    textAlign: 'center',
   },
 });

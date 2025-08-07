@@ -22,14 +22,36 @@ const updateProfileSchema = z.object({
 export default protectedProcedure
   .input(updateProfileSchema)
   .mutation(async ({ input, ctx }) => {
+    // First try to update the existing profile
     const { data: profile, error } = await ctx.supabase
       .from('profiles')
-      .update(input)
+      .update({ ...input, updated_at: new Date().toISOString() })
       .eq('id', ctx.user.id)
       .select()
       .single();
 
     if (error) {
+      // If no profile exists (PGRST116), create one with the update data
+      if (error.code === 'PGRST116') {
+        const { data: newProfile, error: createError } = await ctx.supabase
+          .from('profiles')
+          .insert({
+            id: ctx.user.id,
+            email: ctx.user.email!,
+            ...input,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error(`Failed to create profile: ${createError.message}`);
+        }
+
+        return newProfile;
+      }
+      
       throw new Error(`Failed to update profile: ${error.message}`);
     }
 

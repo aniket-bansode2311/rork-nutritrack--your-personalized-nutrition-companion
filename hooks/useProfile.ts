@@ -206,7 +206,20 @@ export const useProfile = () => {
           setProfile(updatedProfile);
           return { data: updatedProfile, error: null };
         }
-        throw new Error('No profile found to update');
+        
+        // If no profile exists, create a new one with the update data
+        console.log('No existing profile found, creating new profile with update data');
+        const newProfile = {
+          id: user.id,
+          email: user.email || '',
+          ...updates,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        await AsyncStorage.setItem(`profile_${user.id}`, JSON.stringify(newProfile));
+        setProfile(newProfile as Profile);
+        return { data: newProfile as Profile, error: null };
       }
     } catch (err) {
       console.error('Error updating profile:', err);

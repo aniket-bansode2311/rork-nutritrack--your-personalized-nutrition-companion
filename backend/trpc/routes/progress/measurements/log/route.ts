@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const measurementLogProcedure = protectedProcedure
   .input(
@@ -9,7 +9,7 @@ export const measurementLogProcedure = protectedProcedure
       date: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }: { input: { type: "waist" | "chest" | "hips" | "arms" | "thighs" | "neck"; measurement: number; date: string }; ctx: any }) => {
+  .mutation(async ({ input, ctx }: { input: { type: "waist" | "chest" | "hips" | "arms" | "thighs" | "neck"; measurement: number; date: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Logging body measurement:", input);
     
     const { data, error } = await ctx.supabase

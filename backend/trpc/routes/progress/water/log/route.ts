@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const waterLogProcedure = protectedProcedure
   .input(
@@ -8,7 +8,7 @@ export const waterLogProcedure = protectedProcedure
       timestamp: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }: { input: { amount: number; timestamp: string }; ctx: any }) => {
+  .mutation(async ({ input, ctx }: { input: { amount: number; timestamp: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Logging water entry:", input);
     
     const { data, error } = await ctx.supabase

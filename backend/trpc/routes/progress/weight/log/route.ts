@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const weightLogProcedure = protectedProcedure
   .input(
@@ -8,7 +8,7 @@ export const weightLogProcedure = protectedProcedure
       date: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }: { input: { weight: number; date: string }; ctx: any }) => {
+  .mutation(async ({ input, ctx }: { input: { weight: number; date: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Logging weight entry:", input);
     
     const { data, error } = await ctx.supabase

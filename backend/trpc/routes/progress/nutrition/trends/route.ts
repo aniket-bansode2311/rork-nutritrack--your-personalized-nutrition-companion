@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const nutritionTrendsProcedure = protectedProcedure
   .input(
@@ -9,7 +9,7 @@ export const nutritionTrendsProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }: { input: { period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: any }) => {
+  .query(async ({ input, ctx }: { input: { period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Fetching nutrition trends:", input);
     
     // Get food entries for the specified period

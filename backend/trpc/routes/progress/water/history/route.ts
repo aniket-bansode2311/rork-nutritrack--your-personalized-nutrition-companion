@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const waterHistoryProcedure = protectedProcedure
   .input(
@@ -9,7 +9,7 @@ export const waterHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }: { input: { period: "day" | "week" | "month"; startDate?: string; endDate?: string }; ctx: any }) => {
+  .query(async ({ input, ctx }: { input: { period: "day" | "week" | "month"; startDate?: string; endDate?: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Fetching water history:", input);
     
     let query = ctx.supabase

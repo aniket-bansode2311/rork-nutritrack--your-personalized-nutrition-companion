@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const activityHistoryProcedure = protectedProcedure
   .input(
@@ -9,7 +9,7 @@ export const activityHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }: { input: { period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: any }) => {
+  .query(async ({ input, ctx }: { input: { period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Fetching activity history:", input);
     
     let query = ctx.supabase

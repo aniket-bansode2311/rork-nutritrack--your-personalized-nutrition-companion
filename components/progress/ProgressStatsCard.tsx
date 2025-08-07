@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.secondary,
     textAlign: 'center',
   },
   goalSection: {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const measurementHistoryProcedure = protectedProcedure
   .input(
@@ -10,7 +10,7 @@ export const measurementHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }: { input: { type?: "waist" | "chest" | "hips" | "arms" | "thighs" | "neck"; period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: any }) => {
+  .query(async ({ input, ctx }: { input: { type?: "waist" | "chest" | "hips" | "arms" | "thighs" | "neck"; period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Fetching measurement history:", input);
     
     let query = ctx.supabase

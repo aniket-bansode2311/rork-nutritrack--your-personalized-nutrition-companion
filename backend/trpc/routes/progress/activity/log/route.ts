@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../../create-context";
+import { protectedProcedure, type Context } from "../../../create-context";
 
 export const activityLogProcedure = protectedProcedure
   .input(
@@ -12,7 +12,7 @@ export const activityLogProcedure = protectedProcedure
       timestamp: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }: { input: { type: string; duration: number; caloriesBurned?: number; distance?: number; intensity?: "low" | "moderate" | "high"; timestamp: string }; ctx: any }) => {
+  .mutation(async ({ input, ctx }: { input: { type: string; duration: number; caloriesBurned?: number; distance?: number; intensity?: "low" | "moderate" | "high"; timestamp: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     console.log("Logging activity entry:", input);
     
     const { data, error } = await ctx.supabase

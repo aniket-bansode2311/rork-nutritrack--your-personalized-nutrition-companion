@@ -10,9 +10,9 @@ import { useProfile } from '@/hooks/useProfile';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { userProfile } = useNutrition();
+  const { userProfile, isLoading: nutritionLoading } = useNutrition();
   const { signOut } = useAuth();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   
   const navigateToProfile = () => {
     router.push('/profile');
@@ -45,9 +45,10 @@ export default function SettingsScreen() {
 
   // Use profile data if available, fallback to userProfile
   const displayProfile = profile || userProfile;
+  const isLoading = nutritionLoading || profileLoading;
   
   // Show loading state if profile is still loading
-  if (!displayProfile) {
+  if (isLoading) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -65,9 +66,9 @@ export default function SettingsScreen() {
             <User size={32} color={colors.white} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{displayProfile.name || 'User'}</Text>
+            <Text style={styles.profileName}>{displayProfile?.name || 'User'}</Text>
             <Text style={styles.profileDetails}>
-              {displayProfile.weight || 0} kg • {displayProfile.height || 0} cm • {displayProfile.age || 0} years
+              {displayProfile?.weight || 0} kg • {displayProfile?.height || 0} cm • {displayProfile?.age || 0} years
             </Text>
           </View>
           <TouchableOpacity onPress={navigateToProfile} testID="edit-profile-button">

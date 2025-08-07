@@ -39,7 +39,26 @@ export default function ProfileScreen() {
 
   // Use Supabase profile if available, fallback to local profile
   const currentProfile = supabaseProfile ? transformSupabaseProfile(supabaseProfile) : userProfile;
-  const [profile, setProfile] = useState<UserProfile>(() => ({...currentProfile}));
+  
+  // Default profile values if no profile exists
+  const defaultProfile: UserProfile = {
+    id: '',
+    name: '',
+    weight: 70,
+    height: 170,
+    age: 25,
+    gender: 'other',
+    activityLevel: 'moderate',
+    goal: 'maintain',
+    nutritionGoals: {
+      calories: 2000,
+      protein: 150,
+      carbs: 250,
+      fat: 67,
+    },
+  };
+  
+  const [profile, setProfile] = useState<UserProfile>(() => currentProfile ? {...currentProfile} : defaultProfile);
   const [loading, setLoading] = useState<boolean>(false);
   
   const handleChange = (field: keyof UserProfile, value: any) => {

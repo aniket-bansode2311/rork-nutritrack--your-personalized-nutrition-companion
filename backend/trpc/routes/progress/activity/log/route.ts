@@ -12,7 +12,7 @@ export const activityLogProcedure = protectedProcedure
       timestamp: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
+  .mutation(async ({ input, ctx }) => {
     console.log("Logging activity entry:", input);
     
     const { data, error } = await ctx.supabase

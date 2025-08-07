@@ -238,3 +238,77 @@ export interface ProgressStats {
   weightChange: number;
   goalAchievementRate: number;
 }
+
+export interface NutrientInsight {
+  id: string;
+  type: 'deficiency' | 'excess' | 'optimal' | 'recommendation';
+  nutrient: string;
+  severity: 'low' | 'medium' | 'high';
+  title: string;
+  description: string;
+  recommendation: string;
+  actionItems: string[];
+  suggestedFoods?: {
+    targetValue?: number;
+    currentValue?: number;
+    trend?: 'improving' | 'declining' | 'stable';
+  };
+}
+
+export interface MealTimingInsight {
+  id: string;
+  type: 'timing' | 'frequency' | 'distribution';
+  title: string;
+  description: string;
+  recommendation: string;
+  suggestedTiming?: {
+    breakfast: string;
+    lunch: string;
+    dinner: string;
+    snacks?: string[];
+  };
+  currentPattern?: {
+    averageBreakfastTime: string;
+    averageLunchTime: string;
+    averageDinnerTime: string;
+    mealFrequency?: number;
+  };
+}
+
+export interface HealthGoalInsight {
+  id: string;
+  goalType: 'weight_loss' | 'weight_gain' | 'muscle_gain' | 'maintenance' | 'performance';
+  title: string;
+  description: string;
+  progressStatus: 'on_track' | 'behind' | 'ahead' | 'stalled';
+  recommendation: string;
+  actionItems: string[];
+  estimatedTimeToGoal?: string;
+  adjustedCalorieTarget?: number;
+  adjustedMacroTargets?: {
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}
+
+export interface PersonalizedInsights {
+  id: string;
+  userId: string;
+  generatedAt: string;
+  period: 'daily' | 'weekly' | 'monthly';
+  overallScore: number; // 0-100
+  summary: string;
+  nutrientInsights: NutrientInsight[];
+  mealTimingInsights: MealTimingInsight[];
+  healthGoalInsights: HealthGoalInsight[];
+  patterns: {
+    consistencyScore: number;
+    hydrationScore: number;
+    varietyScore: number;
+    balanceScore: number;
+  };
+  achievements: string[];
+  challenges: string[];
+  nextWeekFocus: string[];
+}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, type Context } from "../../../create-context";
+import { protectedProcedure, type Context } from "../../../../create-context";
 
 export const nutritionTrendsProcedure = protectedProcedure
   .input(

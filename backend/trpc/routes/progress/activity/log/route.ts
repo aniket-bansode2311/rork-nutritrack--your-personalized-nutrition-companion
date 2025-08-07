@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure } from "../../../create-context";
+import { protectedProcedure } from "../../../../create-context";
 
 export const activityLogProcedure = protectedProcedure
   .input(

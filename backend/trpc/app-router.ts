@@ -21,6 +21,10 @@ import measurementLogRoute from "./routes/progress/measurements/log/route";
 import measurementHistoryRoute from "./routes/progress/measurements/history/route";
 import progressStatsRoute from "./routes/progress/stats/route";
 import generateInsightsRoute from "./routes/insights/generate/route";
+import generateGoalReviewRoute from "./routes/goals/review/generate/route";
+import submitGoalFeedbackRoute from "./routes/goals/review/submit-feedback/route";
+import goalAdjustmentHistoryRoute from "./routes/goals/adjustment-history/route";
+import smartGoalSuggestionsRoute from "./routes/goals/smart-suggestions/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -68,6 +72,14 @@ export const appRouter = createTRPCRouter({
   }),
   insights: createTRPCRouter({
     generate: generateInsightsRoute,
+  }),
+  goals: createTRPCRouter({
+    review: createTRPCRouter({
+      generate: generateGoalReviewRoute,
+      submitFeedback: submitGoalFeedbackRoute,
+    }),
+    adjustmentHistory: goalAdjustmentHistoryRoute,
+    smartSuggestions: smartGoalSuggestionsRoute,
   }),
 });
 

@@ -38,6 +38,10 @@ export default function DashboardScreen() {
   const navigateToProfile = () => {
     router.push('/profile');
   };
+
+  const navigateToGoalReview = () => {
+    router.push('/goal-review');
+  };
   
   return (
     <View style={styles.container}>

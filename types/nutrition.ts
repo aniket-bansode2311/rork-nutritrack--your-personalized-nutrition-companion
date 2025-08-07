@@ -312,3 +312,96 @@ export interface PersonalizedInsights {
   challenges: string[];
   nextWeekFocus: string[];
 }
+
+export interface GoalReview {
+  id: string;
+  userId: string;
+  reviewDate: string;
+  period: 'weekly' | 'monthly' | 'quarterly';
+  currentGoals: NutritionGoals;
+  suggestedGoals: NutritionGoals;
+  progressAnalysis: {
+    calorieAdherence: number; // percentage
+    proteinAdherence: number;
+    carbsAdherence: number;
+    fatAdherence: number;
+    weightProgress: number; // kg change
+    consistencyScore: number; // 0-100
+    trendDirection: 'improving' | 'declining' | 'stable';
+  };
+  recommendations: GoalRecommendation[];
+  adjustmentReason: string;
+  userFeedback?: {
+    energyLevel: 'low' | 'normal' | 'high';
+    hungerLevel: 'always_hungry' | 'satisfied' | 'rarely_hungry';
+    workoutPerformance: 'declining' | 'stable' | 'improving';
+    sleepQuality: 'poor' | 'fair' | 'good' | 'excellent';
+    stressLevel: 'low' | 'moderate' | 'high';
+    goalSatisfaction: number; // 1-10
+    additionalNotes?: string;
+  };
+  status: 'pending' | 'accepted' | 'rejected' | 'modified';
+  implementedAt?: string;
+}
+
+export interface GoalRecommendation {
+  id: string;
+  type: 'calorie_adjustment' | 'macro_rebalance' | 'timing_change' | 'activity_increase' | 'hydration_focus';
+  priority: 'low' | 'medium' | 'high';
+  title: string;
+  description: string;
+  rationale: string;
+  expectedOutcome: string;
+  implementation: {
+    timeframe: string;
+    steps: string[];
+    metrics: string[];
+  };
+  impact: {
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    expectedWeightChange?: number;
+  };
+}
+
+export interface GoalAdjustmentHistory {
+  id: string;
+  userId: string;
+  adjustmentDate: string;
+  previousGoals: NutritionGoals;
+  newGoals: NutritionGoals;
+  reason: string;
+  source: 'user_request' | 'system_recommendation' | 'periodic_review';
+  effectiveness?: {
+    adherenceImprovement: number;
+    progressImprovement: number;
+    satisfactionScore: number;
+    reviewedAt: string;
+  };
+}
+
+export interface SmartGoalSuggestion {
+  id: string;
+  userId: string;
+  generatedAt: string;
+  confidence: number; // 0-100
+  suggestedGoals: NutritionGoals;
+  reasoning: {
+    dataPoints: string[];
+    patterns: string[];
+    predictions: string[];
+  };
+  expectedOutcomes: {
+    weightChange: number;
+    adherenceImprovement: number;
+    energyLevel: 'improved' | 'maintained' | 'decreased';
+    timeToGoal: string;
+  };
+  riskFactors: string[];
+  alternatives: {
+    conservative: NutritionGoals;
+    aggressive: NutritionGoals;
+  };
+}

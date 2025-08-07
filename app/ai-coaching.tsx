@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { Send, Brain, User, Bot } from 'lucide-react-native';
+import { Send, Brain, User, Bot, BarChart3 } from 'lucide-react-native';
 
 import { colors } from '@/constants/colors';
 import { useDailyNutrition, useNutrition } from '@/hooks/useNutritionStore';
+import InsightsDashboard from '@/components/insights/InsightsDashboard';
 
 interface ChatMessage {
   id: string;
@@ -16,6 +17,7 @@ export default function AICoachingScreen() {
   const { userProfile } = useNutrition();
   const { total, goals, percentages } = useDailyNutrition();
   
+  const [activeTab, setActiveTab] = useState<'chat' | 'insights'>('insights');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -118,6 +120,101 @@ You are a supportive, knowledgeable nutrition coach. Provide personalized advice
     setInputText(question);
   };
   
+  const renderTabContent = () => {
+    if (activeTab === 'insights') {
+      return <InsightsDashboard userId={userProfile.id} />;
+    }
+
+    return (
+      <View style={styles.chatContainer}>
+        <ScrollView 
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+        >
+          {messages.map((message) => (
+            <View 
+              key={message.id} 
+              style={[
+                styles.messageContainer,
+                message.role === 'user' ? styles.userMessage : styles.assistantMessage,
+              ]}
+            >
+              <View style={styles.messageHeader}>
+                {message.role === 'user' ? (
+                  <User size={16} color={colors.white} />
+                ) : (
+                  <Bot size={16} color={colors.primary} />
+                )}
+                <Text style={[
+                  styles.messageRole,
+                  message.role === 'user' ? styles.userMessageRole : styles.assistantMessageRole,
+                ]}>
+                  {message.role === 'user' ? 'You' : 'AI Coach'}
+                </Text>
+              </View>
+              <Text style={[
+                styles.messageText,
+                message.role === 'user' ? styles.userMessageText : styles.assistantMessageText,
+              ]}>
+                {message.content}
+              </Text>
+            </View>
+          ))}
+          
+          {isLoading && (
+            <View style={[styles.messageContainer, styles.assistantMessage]}>
+              <View style={styles.messageHeader}>
+                <Bot size={16} color={colors.primary} />
+                <Text style={styles.assistantMessageRole}>AI Coach</Text>
+              </View>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Thinking...</Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+        
+        {messages.length === 1 && (
+          <View style={styles.quickQuestionsContainer}>
+            <Text style={styles.quickQuestionsTitle}>Quick Questions:</Text>
+            {quickQuestions.map((question, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.quickQuestionButton}
+                onPress={() => handleQuickQuestion(question)}
+                testID={`quick-question-${index}`}
+              >
+                <Text style={styles.quickQuestionText}>{question}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Ask your nutrition coach anything..."
+            placeholderTextColor={colors.mediumGray}
+            multiline
+            maxLength={500}
+            testID="coaching-input"
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+            onPress={sendMessage}
+            disabled={!inputText.trim() || isLoading}
+            testID="send-message"
+          >
+            <Send size={20} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -125,90 +222,30 @@ You are a supportive, knowledgeable nutrition coach. Provide personalized advice
         <Text style={styles.headerTitle}>AI Nutrition Coach</Text>
       </View>
       
-      <ScrollView 
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContent}
-      >
-        {messages.map((message) => (
-          <View 
-            key={message.id} 
-            style={[
-              styles.messageContainer,
-              message.role === 'user' ? styles.userMessage : styles.assistantMessage,
-            ]}
-          >
-            <View style={styles.messageHeader}>
-              {message.role === 'user' ? (
-                <User size={16} color={colors.white} />
-              ) : (
-                <Bot size={16} color={colors.primary} />
-              )}
-              <Text style={[
-                styles.messageRole,
-                message.role === 'user' ? styles.userMessageRole : styles.assistantMessageRole,
-              ]}>
-                {message.role === 'user' ? 'You' : 'AI Coach'}
-              </Text>
-            </View>
-            <Text style={[
-              styles.messageText,
-              message.role === 'user' ? styles.userMessageText : styles.assistantMessageText,
-            ]}>
-              {message.content}
-            </Text>
-          </View>
-        ))}
-        
-        {isLoading && (
-          <View style={[styles.messageContainer, styles.assistantMessage]}>
-            <View style={styles.messageHeader}>
-              <Bot size={16} color={colors.primary} />
-              <Text style={styles.assistantMessageRole}>AI Coach</Text>
-            </View>
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.loadingText}>Thinking...</Text>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-      
-      {messages.length === 1 && (
-        <View style={styles.quickQuestionsContainer}>
-          <Text style={styles.quickQuestionsTitle}>Quick Questions:</Text>
-          {quickQuestions.map((question, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.quickQuestionButton}
-              onPress={() => handleQuickQuestion(question)}
-              testID={`quick-question-${index}`}
-            >
-              <Text style={styles.quickQuestionText}>{question}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Ask your nutrition coach anything..."
-          placeholderTextColor={colors.mediumGray}
-          multiline
-          maxLength={500}
-          testID="coaching-input"
-        />
+      <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-          onPress={sendMessage}
-          disabled={!inputText.trim() || isLoading}
-          testID="send-message"
+          style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
+          onPress={() => setActiveTab('insights')}
+          testID="insights-tab"
         >
-          <Send size={20} color={colors.white} />
+          <BarChart3 size={20} color={activeTab === 'insights' ? colors.white : colors.mediumGray} />
+          <Text style={[styles.tabText, activeTab === 'insights' && styles.activeTabText]}>
+            Insights
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
+          onPress={() => setActiveTab('chat')}
+          testID="chat-tab"
+        >
+          <Bot size={20} color={activeTab === 'chat' ? colors.white : colors.mediumGray} />
+          <Text style={[styles.tabText, activeTab === 'chat' && styles.activeTabText]}>
+            Chat
+          </Text>
         </TouchableOpacity>
       </View>
+      
+      {renderTabContent()}
     </View>
   );
 }
@@ -226,6 +263,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.lightGray,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lightGray,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.mediumGray,
+    marginLeft: 8,
+  },
+  activeTabText: {
+    color: colors.white,
+  },
+  chatContainer: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 18,

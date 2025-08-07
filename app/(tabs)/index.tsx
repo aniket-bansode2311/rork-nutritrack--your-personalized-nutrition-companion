@@ -9,6 +9,7 @@ import { DateSelector } from '@/components/DateSelector';
 import { NutritionSummary } from '@/components/NutritionSummary';
 import { HealthInsights } from '@/components/HealthInsights';
 import { MealSection } from '@/components/MealSection';
+import InsightPreviewCard from '@/components/insights/InsightPreviewCard';
 import { useDailyNutrition, useNutrition, useMealsByType } from '@/hooks/useNutritionStore';
 
 export default function DashboardScreen() {
@@ -107,6 +108,8 @@ export default function DashboardScreen() {
             Point your camera at any meal for instant recognition and accurate portion sizing
           </Text>
         </View>
+        
+        <InsightPreviewCard />
         
         <HealthInsights />
         

@@ -20,6 +20,7 @@ import nutritionTrendsRoute from "./routes/progress/nutrition/trends/route";
 import measurementLogRoute from "./routes/progress/measurements/log/route";
 import measurementHistoryRoute from "./routes/progress/measurements/history/route";
 import progressStatsRoute from "./routes/progress/stats/route";
+import generateInsightsRoute from "./routes/insights/generate/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -64,6 +65,9 @@ export const appRouter = createTRPCRouter({
       history: measurementHistoryRoute,
     }),
     stats: progressStatsRoute,
+  }),
+  insights: createTRPCRouter({
+    generate: generateInsightsRoute,
   }),
 });
 

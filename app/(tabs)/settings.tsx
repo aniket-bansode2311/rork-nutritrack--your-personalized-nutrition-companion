@@ -46,6 +46,17 @@ export default function SettingsScreen() {
   // Use profile data if available, fallback to userProfile
   const displayProfile = profile || userProfile;
   
+  // Show loading state if profile is still loading
+  if (!displayProfile) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    );
+  }
+  
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
@@ -54,9 +65,9 @@ export default function SettingsScreen() {
             <User size={32} color={colors.white} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{displayProfile.name}</Text>
+            <Text style={styles.profileName}>{displayProfile.name || 'User'}</Text>
             <Text style={styles.profileDetails}>
-              {displayProfile.weight} kg • {displayProfile.height} cm • {displayProfile.age} years
+              {displayProfile.weight || 0} kg • {displayProfile.height || 0} cm • {displayProfile.age || 0} years
             </Text>
           </View>
           <TouchableOpacity onPress={navigateToProfile} testID="edit-profile-button">
@@ -267,5 +278,15 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     color: colors.danger,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.darkGray,
   },
 });

@@ -16,8 +16,8 @@ interface BarChartProps {
   yAxisInterval?: number;
   formatYLabel?: (value: string) => string;
   withInnerLines?: boolean;
-  withVerticalLines?: boolean;
-  withHorizontalLines?: boolean;
+  withVerticalLabels?: boolean;
+  withHorizontalLabels?: boolean;
   showValuesOnTopOfBars?: boolean;
 }
 
@@ -31,8 +31,8 @@ export default function BarChart({
   yAxisInterval = 1,
   formatYLabel,
   withInnerLines = true,
-  withVerticalLines = false,
-  withHorizontalLines = true,
+  withVerticalLabels = true,
+  withHorizontalLabels = true,
   showValuesOnTopOfBars = false,
 }: BarChartProps) {
   if (Platform.OS === 'web') {
@@ -73,8 +73,8 @@ export default function BarChart({
         formatYLabel={formatYLabel}
         chartConfig={chartConfig}
         withInnerLines={withInnerLines}
-        withVerticalLines={withVerticalLines}
-        withHorizontalLines={withHorizontalLines}
+        withVerticalLabels={withVerticalLabels}
+        withHorizontalLabels={withHorizontalLabels}
         showValuesOnTopOfBars={showValuesOnTopOfBars}
         style={styles.chart}
       />

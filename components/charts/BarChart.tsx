@@ -72,7 +72,7 @@ export default function BarChart({
         height={height}
         yAxisSuffix={yAxisSuffix}
         yAxisInterval={yAxisInterval}
-        formatYLabel={formatYLabel}
+
         chartConfig={chartConfig}
         withInnerLines={withInnerLines}
         withOuterLines={withOuterLines}

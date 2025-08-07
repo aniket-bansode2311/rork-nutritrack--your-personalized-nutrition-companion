@@ -9,7 +9,7 @@ export const nutritionTrendsProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }) => {
+  .query(async ({ input, ctx }: { input: any; ctx: any }) => {
     console.log("Fetching nutrition trends:", input);
     
     // Get food entries for the specified period
@@ -39,7 +39,7 @@ export const nutritionTrendsProcedure = protectedProcedure
     // Group by date and calculate daily totals
     const dailyTotals = new Map<string, any>();
     
-    data.forEach((entry) => {
+    data.forEach((entry: any) => {
       const date = entry.date;
       const foodItem = entry.food_items;
       const servings = entry.servings;

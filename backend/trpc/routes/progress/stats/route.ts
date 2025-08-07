@@ -9,7 +9,7 @@ export const progressStatsProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }) => {
+  .query(async ({ input, ctx }: { input: any; ctx: any }) => {
     console.log("Fetching progress stats:", input);
     
     const now = new Date();
@@ -79,7 +79,7 @@ export const progressStatsProcedure = protectedProcedure
     let totalCarbs = 0;
     let totalFat = 0;
     
-    nutritionData?.forEach((entry) => {
+    nutritionData?.forEach((entry: any) => {
       const foodItem = entry.food_items;
       const servings = entry.servings;
       totalCalories += (foodItem.calories || 0) * servings;
@@ -88,9 +88,9 @@ export const progressStatsProcedure = protectedProcedure
       totalFat += (foodItem.fat || 0) * servings;
     });
 
-    const totalWater = waterData?.reduce((sum, entry) => sum + entry.amount, 0) || 0;
+    const totalWater = waterData?.reduce((sum: number, entry: any) => sum + entry.amount, 0) || 0;
     const totalActivities = activityData?.length || 0;
-    const totalCaloriesBurned = activityData?.reduce((sum, entry) => sum + (entry.calories_burned || 0), 0) || 0;
+    const totalCaloriesBurned = activityData?.reduce((sum: number, entry: any) => sum + (entry.calories_burned || 0), 0) || 0;
     
     const weightChange = weightData && weightData.length > 1 
       ? weightData[weightData.length - 1].weight - weightData[0].weight 

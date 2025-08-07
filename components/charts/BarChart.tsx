@@ -16,7 +16,6 @@ interface BarChartProps {
   yAxisInterval?: number;
   formatYLabel?: (value: string) => string;
   withInnerLines?: boolean;
-  withOuterLines?: boolean;
   withVerticalLines?: boolean;
   withHorizontalLines?: boolean;
   showValuesOnTopOfBars?: boolean;
@@ -32,7 +31,6 @@ export default function BarChart({
   yAxisInterval = 1,
   formatYLabel,
   withInnerLines = true,
-  withOuterLines = true,
   withVerticalLines = false,
   withHorizontalLines = true,
   showValuesOnTopOfBars = false,
@@ -72,10 +70,9 @@ export default function BarChart({
         height={height}
         yAxisSuffix={yAxisSuffix}
         yAxisInterval={yAxisInterval}
-
+        formatYLabel={formatYLabel}
         chartConfig={chartConfig}
         withInnerLines={withInnerLines}
-        withOuterLines={withOuterLines}
         withVerticalLines={withVerticalLines}
         withHorizontalLines={withHorizontalLines}
         showValuesOnTopOfBars={showValuesOnTopOfBars}

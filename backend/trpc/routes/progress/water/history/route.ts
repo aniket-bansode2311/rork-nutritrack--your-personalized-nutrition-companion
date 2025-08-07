@@ -9,7 +9,7 @@ export const waterHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }: { input: any; ctx: any }) => {
+  .query(async ({ input, ctx }) => {
     console.log("Fetching water history:", input);
     
     let query = ctx.supabase
@@ -32,7 +32,7 @@ export const waterHistoryProcedure = protectedProcedure
       throw new Error("Failed to fetch water history");
     }
 
-    return data.map((entry: any) => ({
+    return data.map((entry) => ({
       id: entry.id,
       amount: entry.amount,
       timestamp: entry.timestamp,

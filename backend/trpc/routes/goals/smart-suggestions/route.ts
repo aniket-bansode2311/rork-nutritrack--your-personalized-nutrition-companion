@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { protectedProcedure, type Context } from '../../../create-context';
+import { protectedProcedure, type Context } from '../../create-context';
 
 export const smartGoalSuggestionsProcedure = protectedProcedure
   .input(
@@ -8,7 +8,10 @@ export const smartGoalSuggestionsProcedure = protectedProcedure
       includeAlternatives: z.boolean().default(true),
     })
   )
-  .query(async ({ input, ctx }: { input: { analysisDepth: 'basic' | 'detailed' | 'comprehensive'; includeAlternatives: boolean }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
+  .query(async ({ input, ctx }: { 
+    input: { analysisDepth: 'basic' | 'detailed' | 'comprehensive'; includeAlternatives: boolean }; 
+    ctx: Context & { user: NonNullable<Context['user']> } 
+  }) => {
     const { analysisDepth, includeAlternatives } = input;
     const userId = ctx.user.id;
 
@@ -147,7 +150,12 @@ function analyzeRecentPerformance(
   nutritionData: any[],
   weightData: any[],
   activityData: any[],
-  currentGoals: any
+  currentGoals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }
 ): {
   consistencyScore: number;
   averageAdherence: number;
@@ -193,8 +201,20 @@ function analyzeRecentPerformance(
 }
 
 function generateSmartGoals(
-  currentGoals: any,
-  performance: any,
+  currentGoals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  },
+  performance: {
+    consistencyScore: number;
+    averageAdherence: number;
+    weightTrend: number;
+    projectedWeightChange: number;
+    adherenceImprovement: number;
+    effectiveness: number;
+  },
   profile: any,
   tdee: number
 ): {
@@ -228,9 +248,21 @@ function calculateConfidence(
 }
 
 function generateAlternativeGoals(
-  suggestedGoals: any,
+  suggestedGoals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  },
   profile: any,
-  performance: any
+  performance: {
+    consistencyScore: number;
+    averageAdherence: number;
+    weightTrend: number;
+    projectedWeightChange: number;
+    adherenceImprovement: number;
+    effectiveness: number;
+  }
 ): Array<{
   name: string;
   description: string;

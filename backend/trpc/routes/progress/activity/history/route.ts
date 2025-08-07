@@ -9,7 +9,7 @@ export const activityHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }: { input: { period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string; }; ctx: any }) => {
+  .query(async ({ input, ctx }) => {
     console.log("Fetching activity history:", input);
     
     let query = ctx.supabase
@@ -32,7 +32,7 @@ export const activityHistoryProcedure = protectedProcedure
       throw new Error("Failed to fetch activity history");
     }
 
-    return data.map((entry: any) => ({
+    return data.map((entry) => ({
       id: entry.id,
       type: entry.type,
       duration: entry.duration,

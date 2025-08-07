@@ -50,12 +50,12 @@ export const smartGoalSuggestionsProcedure = protectedProcedure
         .from('activity_entries')
         .select('*')
         .eq('user_id', userId)
-        .gte('timestamp', startDate.toISOString())
+        .gte('date', startDate.toISOString().split('T')[0])
     ]);
 
     // Analyze patterns and generate suggestions
     const currentGoals = {
-      calories: profile.calorie_goal || 2000,
+      calories: profile.calories_goal || 2000,
       protein: profile.protein_goal || 150,
       carbs: profile.carbs_goal || 200,
       fat: profile.fat_goal || 65,
@@ -226,8 +226,8 @@ function generateSmartGoals(
   const adjustmentFactor = performance.averageAdherence > 90 ? 1.05 : 
                           performance.averageAdherence < 70 ? 0.95 : 1.0;
 
-  const goalAdjustment = profile.goal === 'lose_weight' ? -500 : 
-                        profile.goal === 'gain_weight' ? 500 : 0;
+  const goalAdjustment = profile.goal === 'lose' ? -500 : 
+                        profile.goal === 'gain' ? 500 : 0;
 
   return {
     calories: Math.round((tdee + goalAdjustment) * adjustmentFactor),

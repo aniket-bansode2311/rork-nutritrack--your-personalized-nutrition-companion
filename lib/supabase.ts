@@ -225,6 +225,180 @@ export type Database = {
           sodium_per_serving?: number;
         };
       };
+      weight_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          weight: number;
+          date: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          weight: number;
+          date: string;
+        };
+        Update: {
+          weight?: number;
+          date?: string;
+        };
+      };
+      water_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount: number;
+          timestamp: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          amount: number;
+          timestamp?: string;
+        };
+        Update: {
+          amount?: number;
+          timestamp?: string;
+        };
+      };
+      activity_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          activity_type: string;
+          duration: number;
+          calories_burned?: number;
+          date: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          activity_type: string;
+          duration: number;
+          calories_burned?: number;
+          date: string;
+        };
+        Update: {
+          activity_type?: string;
+          duration?: number;
+          calories_burned?: number;
+          date?: string;
+        };
+      };
+      barcode_products: {
+        Row: {
+          id: string;
+          barcode: string;
+          name: string;
+          brand?: string;
+          serving_size: number;
+          serving_unit: string;
+          calories_per_serving: number;
+          protein_per_serving: number;
+          carbs_per_serving: number;
+          fat_per_serving: number;
+          fiber_per_serving?: number;
+          sugar_per_serving?: number;
+          sodium_per_serving?: number;
+          created_at: string;
+        };
+        Insert: {
+          barcode: string;
+          name: string;
+          brand?: string;
+          serving_size: number;
+          serving_unit: string;
+          calories_per_serving: number;
+          protein_per_serving: number;
+          carbs_per_serving: number;
+          fat_per_serving: number;
+          fiber_per_serving?: number;
+          sugar_per_serving?: number;
+          sodium_per_serving?: number;
+        };
+        Update: {
+          name?: string;
+          brand?: string;
+          serving_size?: number;
+          serving_unit?: string;
+          calories_per_serving?: number;
+          protein_per_serving?: number;
+          carbs_per_serving?: number;
+          fat_per_serving?: number;
+          fiber_per_serving?: number;
+          sugar_per_serving?: number;
+          sodium_per_serving?: number;
+        };
+      };
+      personalized_insights: {
+        Row: {
+          id: string;
+          user_id: string;
+          insight_type: string;
+          title: string;
+          description: string;
+          recommendations: any[];
+          priority: 'low' | 'medium' | 'high';
+          is_read: boolean;
+          generated_at: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          insight_type: string;
+          title: string;
+          description: string;
+          recommendations?: any[];
+          priority?: 'low' | 'medium' | 'high';
+          is_read?: boolean;
+          generated_at?: string;
+          expires_at?: string;
+        };
+        Update: {
+          insight_type?: string;
+          title?: string;
+          description?: string;
+          recommendations?: any[];
+          priority?: 'low' | 'medium' | 'high';
+          is_read?: boolean;
+          expires_at?: string;
+        };
+      };
+      smart_goal_suggestions: {
+        Row: {
+          id: string;
+          user_id: string;
+          adjustment_date: string;
+          previous_goals: any;
+          new_goals: any;
+          reason?: string;
+          source: 'user_request' | 'system_recommendation' | 'periodic_review';
+          effectiveness_tracking?: any;
+          status: 'pending' | 'accepted' | 'rejected' | 'expired';
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          adjustment_date?: string;
+          previous_goals: any;
+          new_goals: any;
+          reason?: string;
+          source: 'user_request' | 'system_recommendation' | 'periodic_review';
+          effectiveness_tracking?: any;
+          status?: 'pending' | 'accepted' | 'rejected' | 'expired';
+          expires_at?: string;
+        };
+        Update: {
+          previous_goals?: any;
+          new_goals?: any;
+          reason?: string;
+          effectiveness_tracking?: any;
+          status?: 'pending' | 'accepted' | 'rejected' | 'expired';
+          expires_at?: string;
+        };
+      };
     };
   };
 };

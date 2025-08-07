@@ -24,7 +24,7 @@ import generateInsightsRoute from "./routes/insights/generate/route";
 import generateGoalReviewRoute from "./routes/goals/review/generate/route";
 import submitGoalFeedbackRoute from "./routes/goals/review/submit-feedback/route";
 import goalAdjustmentHistoryRoute from "./routes/goals/adjustment-history/route";
-import smartGoalSuggestionsRoute from "./routes/goals/smart-suggestions/route";
+import { smartGoalSuggestionsProcedure } from "./routes/goals/smart-suggestions/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -79,7 +79,7 @@ export const appRouter = createTRPCRouter({
       submitFeedback: submitGoalFeedbackRoute,
     }),
     adjustmentHistory: goalAdjustmentHistoryRoute,
-    smartSuggestions: smartGoalSuggestionsRoute,
+    smartSuggestions: smartGoalSuggestionsProcedure,
   }),
 });
 

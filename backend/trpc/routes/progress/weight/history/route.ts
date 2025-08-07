@@ -9,7 +9,7 @@ export const weightHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }) => {
+  .query(async ({ input, ctx }: { input: { period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: any }) => {
     console.log("Fetching weight history:", input);
     
     let query = ctx.supabase
@@ -32,7 +32,7 @@ export const weightHistoryProcedure = protectedProcedure
       throw new Error("Failed to fetch weight history");
     }
 
-    return data.map((entry) => ({
+    return data.map((entry: any) => ({
       id: entry.id,
       weight: entry.weight,
       date: entry.date,

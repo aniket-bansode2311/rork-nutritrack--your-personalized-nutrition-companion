@@ -8,7 +8,7 @@ export const weightLogProcedure = protectedProcedure
       date: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }) => {
+  .mutation(async ({ input, ctx }: { input: { weight: number; date: string }; ctx: any }) => {
     console.log("Logging weight entry:", input);
     
     const { data, error } = await ctx.supabase

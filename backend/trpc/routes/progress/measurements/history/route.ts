@@ -10,7 +10,7 @@ export const measurementHistoryProcedure = protectedProcedure
       endDate: z.string().optional(),
     })
   )
-  .query(async ({ input, ctx }) => {
+  .query(async ({ input, ctx }: { input: { type?: "waist" | "chest" | "hips" | "arms" | "thighs" | "neck"; period: "week" | "month" | "quarter" | "year"; startDate?: string; endDate?: string }; ctx: any }) => {
     console.log("Fetching measurement history:", input);
     
     let query = ctx.supabase
@@ -36,7 +36,7 @@ export const measurementHistoryProcedure = protectedProcedure
       throw new Error("Failed to fetch measurement history");
     }
 
-    return data.map((entry) => ({
+    return data.map((entry: any) => ({
       id: entry.id,
       type: entry.type,
       measurement: entry.measurement,

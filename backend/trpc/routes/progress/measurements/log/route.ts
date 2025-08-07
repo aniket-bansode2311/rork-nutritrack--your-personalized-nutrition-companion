@@ -9,7 +9,7 @@ export const measurementLogProcedure = protectedProcedure
       date: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }) => {
+  .mutation(async ({ input, ctx }: { input: { type: "waist" | "chest" | "hips" | "arms" | "thighs" | "neck"; measurement: number; date: string }; ctx: any }) => {
     console.log("Logging body measurement:", input);
     
     const { data, error } = await ctx.supabase

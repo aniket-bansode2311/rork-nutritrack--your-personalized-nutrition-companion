@@ -12,7 +12,7 @@ export const activityLogProcedure = protectedProcedure
       timestamp: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }) => {
+  .mutation(async ({ input, ctx }: { input: { type: string; duration: number; caloriesBurned?: number; distance?: number; intensity?: "low" | "moderate" | "high"; timestamp: string }; ctx: any }) => {
     console.log("Logging activity entry:", input);
     
     const { data, error } = await ctx.supabase

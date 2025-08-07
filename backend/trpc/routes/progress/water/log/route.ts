@@ -8,7 +8,7 @@ export const waterLogProcedure = protectedProcedure
       timestamp: z.string(),
     })
   )
-  .mutation(async ({ input, ctx }) => {
+  .mutation(async ({ input, ctx }: { input: { amount: number; timestamp: string }; ctx: any }) => {
     console.log("Logging water entry:", input);
     
     const { data, error } = await ctx.supabase

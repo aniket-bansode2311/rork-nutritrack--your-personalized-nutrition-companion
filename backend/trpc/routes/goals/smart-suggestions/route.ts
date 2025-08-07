@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { protectedProcedure } from '../../create-context';
+import { protectedProcedure, type Context } from '../../../create-context';
 
 export const smartGoalSuggestionsProcedure = protectedProcedure
   .input(
@@ -8,7 +8,7 @@ export const smartGoalSuggestionsProcedure = protectedProcedure
       includeAlternatives: z.boolean().default(true),
     })
   )
-  .query(async ({ input, ctx }) => {
+  .query(async ({ input, ctx }: { input: { analysisDepth: 'basic' | 'detailed' | 'comprehensive'; includeAlternatives: boolean }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
     const { analysisDepth, includeAlternatives } = input;
     const userId = ctx.user.id;
 
@@ -148,7 +148,14 @@ function analyzeRecentPerformance(
   weightData: any[],
   activityData: any[],
   currentGoals: any
-) {
+): {
+  consistencyScore: number;
+  averageAdherence: number;
+  weightTrend: number;
+  projectedWeightChange: number;
+  adherenceImprovement: number;
+  effectiveness: number;
+} {
   const totalDays = 30;
   const loggedDays = new Set(nutritionData.map(entry => entry.logged_at.split('T')[0])).size;
   const consistencyScore = (loggedDays / totalDays) * 100;
@@ -190,7 +197,12 @@ function generateSmartGoals(
   performance: any,
   profile: any,
   tdee: number
-) {
+): {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+} {
   const adjustmentFactor = performance.averageAdherence > 90 ? 1.05 : 
                           performance.averageAdherence < 70 ? 0.95 : 1.0;
 
@@ -219,7 +231,16 @@ function generateAlternativeGoals(
   suggestedGoals: any,
   profile: any,
   performance: any
-) {
+): Array<{
+  name: string;
+  description: string;
+  goals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}> {
   return [
     {
       name: 'Conservative Approach',

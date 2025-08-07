@@ -1,12 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { mockMealEntries } from '@/mocks/mealEntries';
-import { mockUserProfile } from '@/mocks/userProfile';
 import { DailyLog, FoodItem, MealEntry, UserProfile, Recipe, RecipeEntry } from '@/types/nutrition';
-import { mockFoodItems } from '@/mocks/foodItems';
-import { mockRecipes } from '@/mocks/recipes';
+import { trpc } from '@/lib/trpc';
 
 // Helper function to calculate total nutrition for a day
 const calculateTotalNutrition = (meals: MealEntry[], recipes: RecipeEntry[] = []) => {
@@ -51,85 +49,184 @@ const getTodayString = () => {
 };
 
 export const [NutritionProvider, useNutrition] = createContextHook(() => {
-  const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
-  const [mealEntries, setMealEntries] = useState<MealEntry[]>(mockMealEntries);
-  const [foodItems, setFoodItems] = useState<FoodItem[]>(mockFoodItems);
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [favoriteFoods, setFavoriteFoods] = useState<string[]>([]);
-  const [customFoods, setCustomFoods] = useState<FoodItem[]>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>(mockRecipes);
-  const [recipeEntries, setRecipeEntries] = useState<RecipeEntry[]>([]);
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
+  const queryClient = useQueryClient();
 
-  // Load data from AsyncStorage on mount
+  // Fetch user profile
+  const profileQuery = trpc.profile.get.useQuery();
+  
+  // Fetch food entries for selected date
+  const foodEntriesQuery = trpc.food.entries.useQuery({
+    date: selectedDate,
+  });
+  
+  // Fetch custom foods
+  const customFoodsQuery = trpc.customFoods.list.useQuery({});
+  
+  // Fetch recipes
+  const recipesQuery = trpc.recipes.list.useQuery({});
+  
+  // Mutations
+  const logFoodMutation = trpc.food.log.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['food', 'entries'] });
+    },
+  });
+  
+  const deleteFoodMutation = trpc.food.delete.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['food', 'entries'] });
+    },
+  });
+  
+  const updateProfileMutation = trpc.profile.update.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+  
+  const createCustomFoodMutation = trpc.customFoods.create.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customFoods'] });
+    },
+  });
+  
+  const createRecipeMutation = trpc.recipes.create.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+    },
+  });
+
+  // Transform database data to match our types
+  const userProfile: UserProfile | null = useMemo(() => {
+    if (!profileQuery.data) return null;
+    const profile = profileQuery.data;
+    return {
+      id: profile.id,
+      name: profile.name,
+      weight: Number(profile.weight),
+      height: Number(profile.height),
+      age: profile.age,
+      gender: profile.gender as 'male' | 'female' | 'other',
+      activityLevel: profile.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very active',
+      goal: profile.goal as 'lose' | 'maintain' | 'gain',
+      nutritionGoals: {
+        calories: profile.calories_goal,
+        protein: Number(profile.protein_goal),
+        carbs: Number(profile.carbs_goal),
+        fat: Number(profile.fat_goal),
+      },
+    };
+  }, [profileQuery.data]);
+
+  const mealEntries: MealEntry[] = useMemo(() => {
+    if (!foodEntriesQuery.data) return [];
+    return foodEntriesQuery.data.map((entry: any) => ({
+      id: entry.id,
+      foodItem: {
+        id: entry.id,
+        name: entry.food_name,
+        brand: entry.brand,
+        servingSize: Number(entry.serving_size),
+        servingUnit: entry.serving_unit,
+        calories: Number(entry.calories),
+        protein: Number(entry.protein),
+        carbs: Number(entry.carbs),
+        fat: Number(entry.fat),
+        fiber: entry.fiber ? Number(entry.fiber) : undefined,
+        sugar: entry.sugar ? Number(entry.sugar) : undefined,
+        sodium: entry.sodium ? Number(entry.sodium) : undefined,
+      },
+      servings: 1, // Assuming 1 serving per entry for now
+      mealType: entry.meal_type as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+      date: new Date(entry.logged_at).toISOString().split('T')[0],
+    }));
+  }, [foodEntriesQuery.data]);
+
+  const customFoods: FoodItem[] = useMemo(() => {
+    if (!customFoodsQuery.data) return [];
+    return customFoodsQuery.data.map((food: any) => ({
+      id: food.id,
+      name: food.name,
+      brand: food.brand,
+      servingSize: Number(food.serving_size),
+      servingUnit: food.serving_unit,
+      calories: Number(food.calories_per_serving),
+      protein: Number(food.protein_per_serving),
+      carbs: Number(food.carbs_per_serving),
+      fat: Number(food.fat_per_serving),
+      fiber: food.fiber_per_serving ? Number(food.fiber_per_serving) : undefined,
+      sugar: food.sugar_per_serving ? Number(food.sugar_per_serving) : undefined,
+      sodium: food.sodium_per_serving ? Number(food.sodium_per_serving) : undefined,
+    }));
+  }, [customFoodsQuery.data]);
+
+  const recipes: Recipe[] = useMemo(() => {
+    if (!recipesQuery.data) return [];
+    return recipesQuery.data.map((recipe: any) => ({
+      id: recipe.id,
+      name: recipe.name,
+      description: recipe.description,
+      servings: recipe.servings,
+      prepTime: recipe.prep_time,
+      cookTime: recipe.cook_time,
+      instructions: recipe.instructions || [],
+      ingredients: recipe.ingredients || [],
+      nutritionPerServing: {
+        calories: Number(recipe.total_calories) / recipe.servings,
+        protein: Number(recipe.total_protein) / recipe.servings,
+        carbs: Number(recipe.total_carbs) / recipe.servings,
+        fat: Number(recipe.total_fat) / recipe.servings,
+      },
+      imageUrl: recipe.image_url,
+      createdAt: recipe.created_at,
+      updatedAt: recipe.updated_at,
+    }));
+  }, [recipesQuery.data]);
+
+  const isLoading = profileQuery.isLoading || foodEntriesQuery.isLoading || customFoodsQuery.isLoading || recipesQuery.isLoading;
+
+  // Load favorites from AsyncStorage on mount
   useEffect(() => {
-    const loadData = async () => {
+    const loadFavorites = async () => {
       try {
-        const storedUserProfile = await AsyncStorage.getItem('userProfile');
-        const storedMealEntries = await AsyncStorage.getItem('mealEntries');
-        const storedFoodItems = await AsyncStorage.getItem('foodItems');
         const storedFavoriteFoods = await AsyncStorage.getItem('favoriteFoods');
-        const storedCustomFoods = await AsyncStorage.getItem('customFoods');
-        const storedRecipes = await AsyncStorage.getItem('recipes');
-        const storedRecipeEntries = await AsyncStorage.getItem('recipeEntries');
         const storedFavoriteRecipes = await AsyncStorage.getItem('favoriteRecipes');
 
-        if (storedUserProfile) {
-          setUserProfile(JSON.parse(storedUserProfile));
-        }
-        if (storedMealEntries) {
-          setMealEntries(JSON.parse(storedMealEntries));
-        }
-        if (storedFoodItems) {
-          setFoodItems(JSON.parse(storedFoodItems));
-        }
         if (storedFavoriteFoods) {
           setFavoriteFoods(JSON.parse(storedFavoriteFoods));
-        }
-        if (storedCustomFoods) {
-          setCustomFoods(JSON.parse(storedCustomFoods));
-        }
-        if (storedRecipes) {
-          setRecipes(JSON.parse(storedRecipes));
-        }
-        if (storedRecipeEntries) {
-          setRecipeEntries(JSON.parse(storedRecipeEntries));
         }
         if (storedFavoriteRecipes) {
           setFavoriteRecipes(JSON.parse(storedFavoriteRecipes));
         }
       } catch (error) {
-        console.error('Error loading data from AsyncStorage:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('Error loading favorites from AsyncStorage:', error);
       }
     };
 
-    loadData();
+    loadFavorites();
   }, []);
 
-  // Save data to AsyncStorage when it changes
+  // Save favorites to AsyncStorage when they change
   useEffect(() => {
-    const saveData = async () => {
+    const saveFavorites = async () => {
       try {
-        await AsyncStorage.setItem('userProfile', JSON.stringify(userProfile));
-        await AsyncStorage.setItem('mealEntries', JSON.stringify(mealEntries));
-        await AsyncStorage.setItem('foodItems', JSON.stringify(foodItems));
         await AsyncStorage.setItem('favoriteFoods', JSON.stringify(favoriteFoods));
-        await AsyncStorage.setItem('customFoods', JSON.stringify(customFoods));
-        await AsyncStorage.setItem('recipes', JSON.stringify(recipes));
-        await AsyncStorage.setItem('recipeEntries', JSON.stringify(recipeEntries));
         await AsyncStorage.setItem('favoriteRecipes', JSON.stringify(favoriteRecipes));
       } catch (error) {
-        console.error('Error saving data to AsyncStorage:', error);
+        console.error('Error saving favorites to AsyncStorage:', error);
       }
     };
 
-    if (!isLoading) {
-      saveData();
-    }
-  }, [userProfile, mealEntries, foodItems, favoriteFoods, customFoods, recipes, recipeEntries, favoriteRecipes, isLoading]);
+    saveFavorites();
+  }, [favoriteFoods, favoriteRecipes]);
+
+  // Refetch food entries when date changes
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['food', 'entries'] });
+  }, [selectedDate, queryClient]);
 
   // Get meals for the selected date
   const getMealsForDate = (date: string) => {
@@ -139,68 +236,166 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   // Get daily log for the selected date
   const getDailyLog = (date: string): DailyLog => {
     const meals = getMealsForDate(date);
-    const recipes = recipeEntries.filter(entry => entry.date === date);
     return {
       date,
       meals,
-      totalNutrition: calculateTotalNutrition(meals, recipes),
+      totalNutrition: calculateTotalNutrition(meals, []),
     };
   };
 
   // Add a meal entry
-  const addMealEntry = (entry: Omit<MealEntry, 'id'>) => {
-    const newEntry: MealEntry = {
-      ...entry,
-      id: Date.now().toString(),
-    };
-    setMealEntries((prev) => [...prev, newEntry]);
+  const addMealEntry = async (entry: Omit<MealEntry, 'id'>) => {
+    try {
+      await logFoodMutation.mutateAsync({
+        food_name: entry.foodItem.name,
+        brand: entry.foodItem.brand,
+        serving_size: entry.foodItem.servingSize,
+        serving_unit: entry.foodItem.servingUnit,
+        calories: entry.foodItem.calories * entry.servings,
+        protein: entry.foodItem.protein * entry.servings,
+        carbs: entry.foodItem.carbs * entry.servings,
+        fat: entry.foodItem.fat * entry.servings,
+        fiber: entry.foodItem.fiber ? entry.foodItem.fiber * entry.servings : undefined,
+        sugar: entry.foodItem.sugar ? entry.foodItem.sugar * entry.servings : undefined,
+        sodium: entry.foodItem.sodium ? entry.foodItem.sodium * entry.servings : undefined,
+        meal_type: entry.mealType,
+        logged_at: new Date(`${entry.date}T12:00:00`).toISOString(),
+      });
+    } catch (error) {
+      console.error('Error adding meal entry:', error);
+      throw error;
+    }
   };
 
   // Remove a meal entry
-  const removeMealEntry = (id: string) => {
-    setMealEntries((prev) => prev.filter((entry) => entry.id !== id));
+  const removeMealEntry = async (id: string) => {
+    try {
+      await deleteFoodMutation.mutateAsync({ id });
+    } catch (error) {
+      console.error('Error removing meal entry:', error);
+      throw error;
+    }
   };
 
-  // Update a meal entry
-  const updateMealEntry = (id: string, updates: Partial<Omit<MealEntry, 'id'>>) => {
-    setMealEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id ? { ...entry, ...updates } : entry
-      )
-    );
+  // Update a meal entry (for now, we'll remove and re-add)
+  const updateMealEntry = async (id: string, updates: Partial<Omit<MealEntry, 'id'>>) => {
+    // For now, we'll implement this as remove and re-add
+    // In a real app, you'd want a proper update endpoint
+    console.log('Update meal entry not fully implemented yet:', id, updates);
   };
 
   // Update user profile
-  const updateUserProfile = (updates: Partial<UserProfile>) => {
-    setUserProfile((prev) => ({ ...prev, ...updates }));
+  const updateUserProfile = async (updates: Partial<UserProfile>) => {
+    if (!userProfile) return;
+    
+    try {
+      const updateData: any = {};
+      
+      if (updates.name) updateData.name = updates.name;
+      if (updates.weight) updateData.weight = updates.weight;
+      if (updates.height) updateData.height = updates.height;
+      if (updates.age) updateData.age = updates.age;
+      if (updates.gender) updateData.gender = updates.gender;
+      if (updates.activityLevel) updateData.activity_level = updates.activityLevel;
+      if (updates.goal) updateData.goal = updates.goal;
+      if (updates.nutritionGoals) {
+        updateData.calories_goal = updates.nutritionGoals.calories;
+        updateData.protein_goal = updates.nutritionGoals.protein;
+        updateData.carbs_goal = updates.nutritionGoals.carbs;
+        updateData.fat_goal = updates.nutritionGoals.fat;
+      }
+      
+      await updateProfileMutation.mutateAsync(updateData);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
   };
 
-  // Search food items (includes custom foods)
+  // Search food items (includes basic foods and custom foods)
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const foodSearchQuery = trpc.food.search.useQuery(
+    { query: searchQuery },
+    { enabled: searchQuery.length > 0 }
+  );
+
   const searchFoodItems = (query: string) => {
     if (!query.trim()) return [];
+    
     const lowerQuery = query.toLowerCase().trim();
-    const allFoods = [...foodItems, ...customFoods];
-    return allFoods.filter(
+    
+    // Search custom foods
+    const customResults = customFoods.filter(
       (item) =>
         item.name.toLowerCase().includes(lowerQuery) ||
         (item.brand && item.brand.toLowerCase().includes(lowerQuery))
     );
+    
+    // Search basic foods from database
+    const basicResults = (foodSearchQuery.data || []).map((food: any) => ({
+      id: food.id,
+      name: food.name,
+      brand: food.brand,
+      servingSize: Number(food.serving_size),
+      servingUnit: food.serving_unit,
+      calories: Number(food.calories),
+      protein: Number(food.protein),
+      carbs: Number(food.carbs),
+      fat: Number(food.fat),
+      fiber: food.fiber ? Number(food.fiber) : undefined,
+      sugar: food.sugar ? Number(food.sugar) : undefined,
+      sodium: food.sodium ? Number(food.sodium) : undefined,
+    }));
+    
+    // Trigger search if query changed
+    if (query !== searchQuery) {
+      setSearchQuery(query);
+    }
+    
+    // Combine results, prioritizing custom foods
+    return [...customResults, ...basicResults];
   };
 
   // Add a custom food item
-  const addFoodItem = (item: Omit<FoodItem, 'id'>) => {
-    const newItem: FoodItem = {
-      ...item,
-      id: `custom-${Date.now()}`,
-    };
-    setCustomFoods((prev) => [...prev, newItem]);
-    return newItem;
+  const addFoodItem = async (item: Omit<FoodItem, 'id'>) => {
+    try {
+      const result = await createCustomFoodMutation.mutateAsync({
+        name: item.name,
+        brand: item.brand,
+        serving_size: item.servingSize,
+        serving_unit: item.servingUnit,
+        calories_per_serving: item.calories,
+        protein_per_serving: item.protein,
+        carbs_per_serving: item.carbs,
+        fat_per_serving: item.fat,
+        fiber_per_serving: item.fiber,
+        sugar_per_serving: item.sugar,
+        sodium_per_serving: item.sodium,
+      });
+      
+      return {
+        id: result.id,
+        name: result.name,
+        brand: result.brand,
+        servingSize: Number(result.serving_size),
+        servingUnit: result.serving_unit,
+        calories: Number(result.calories_per_serving),
+        protein: Number(result.protein_per_serving),
+        carbs: Number(result.carbs_per_serving),
+        fat: Number(result.fat_per_serving),
+        fiber: result.fiber_per_serving ? Number(result.fiber_per_serving) : undefined,
+        sugar: result.sugar_per_serving ? Number(result.sugar_per_serving) : undefined,
+        sodium: result.sodium_per_serving ? Number(result.sodium_per_serving) : undefined,
+      };
+    } catch (error) {
+      console.error('Error adding custom food:', error);
+      throw error;
+    }
   };
   
   // Get frequent foods based on meal entries
   const getFrequentFoods = () => {
     const foodCounts = new Map<string, { count: number; food: FoodItem; lastUsed: string }>();
-    const allFoods = [...foodItems, ...customFoods];
     
     // Count food usage in the last 30 days
     const thirtyDaysAgo = new Date();
@@ -239,8 +434,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   
   // Get favorite foods
   const getFavorites = () => {
-    const allFoods = [...foodItems, ...customFoods];
-    return allFoods.filter(food => favoriteFoods.includes(food.id));
+    return customFoods.filter(food => favoriteFoods.includes(food.id));
   };
   
   // Toggle favorite status
@@ -260,30 +454,57 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   };
 
   // Recipe management functions
-  const addRecipe = (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newRecipe: Recipe = {
-      ...recipe,
-      id: `recipe-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setRecipes(prev => [...prev, newRecipe]);
-    return newRecipe;
+  const addRecipe = async (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const totalNutrition = recipe.nutritionPerServing;
+      const result = await createRecipeMutation.mutateAsync({
+        name: recipe.name,
+        description: recipe.description,
+        servings: recipe.servings,
+        prep_time: recipe.prepTime,
+        cook_time: recipe.cookTime,
+        instructions: recipe.instructions,
+        ingredients: recipe.ingredients,
+        total_calories: totalNutrition.calories * recipe.servings,
+        total_protein: totalNutrition.protein * recipe.servings,
+        total_carbs: totalNutrition.carbs * recipe.servings,
+        total_fat: totalNutrition.fat * recipe.servings,
+        image_url: recipe.imageUrl,
+      });
+      
+      return {
+        id: result.id,
+        name: result.name,
+        description: result.description,
+        servings: result.servings,
+        prepTime: result.prep_time,
+        cookTime: result.cook_time,
+        instructions: result.instructions || [],
+        ingredients: result.ingredients || [],
+        nutritionPerServing: {
+          calories: Number(result.total_calories) / result.servings,
+          protein: Number(result.total_protein) / result.servings,
+          carbs: Number(result.total_carbs) / result.servings,
+          fat: Number(result.total_fat) / result.servings,
+        },
+        imageUrl: result.image_url,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at,
+      };
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      throw error;
+    }
   };
 
-  const updateRecipe = (id: string, updates: Partial<Omit<Recipe, 'id' | 'createdAt'>>) => {
-    setRecipes(prev =>
-      prev.map(recipe =>
-        recipe.id === id
-          ? { ...recipe, ...updates, updatedAt: new Date().toISOString() }
-          : recipe
-      )
-    );
+  const updateRecipe = async (id: string, updates: Partial<Omit<Recipe, 'id' | 'createdAt'>>) => {
+    // TODO: Implement recipe update endpoint
+    console.log('Recipe update not implemented yet:', id, updates);
   };
 
-  const deleteRecipe = (id: string) => {
-    setRecipes(prev => prev.filter(recipe => recipe.id !== id));
-    setRecipeEntries(prev => prev.filter(entry => entry.recipe.id !== id));
+  const deleteRecipe = async (id: string) => {
+    // TODO: Implement recipe delete endpoint
+    console.log('Recipe delete not implemented yet:', id);
     setFavoriteRecipes(prev => prev.filter(recipeId => recipeId !== id));
   };
 
@@ -299,16 +520,14 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     );
   };
 
-  const addRecipeEntry = (entry: Omit<RecipeEntry, 'id'>) => {
-    const newEntry: RecipeEntry = {
-      ...entry,
-      id: `recipe-entry-${Date.now()}`,
-    };
-    setRecipeEntries(prev => [...prev, newEntry]);
+  const addRecipeEntry = async (entry: Omit<RecipeEntry, 'id'>) => {
+    // TODO: Implement recipe entry logging
+    console.log('Recipe entry logging not implemented yet:', entry);
   };
 
-  const removeRecipeEntry = (id: string) => {
-    setRecipeEntries(prev => prev.filter(entry => entry.id !== id));
+  const removeRecipeEntry = async (id: string) => {
+    // TODO: Implement recipe entry removal
+    console.log('Recipe entry removal not implemented yet:', id);
   };
 
   const toggleRecipeFavorite = (recipeId: string) => {
@@ -383,14 +602,14 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     addMealEntry,
     removeMealEntry,
     updateMealEntry,
-    foodItems,
+    foodItems: [], // Empty for now, could add a food database later
     customFoods,
     searchFoodItems,
     addFoodItem,
     selectedDate,
     setSelectedDate,
     getDailyLog,
-    isLoading,
+    isLoading: isLoading || foodSearchQuery.isLoading,
     getFrequentFoods,
     getFavorites,
     toggleFavorite,
@@ -402,7 +621,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     updateRecipe,
     deleteRecipe,
     searchRecipes,
-    recipeEntries,
+    recipeEntries: [], // Empty for now
     addRecipeEntry,
     removeRecipeEntry,
     favoriteRecipes,
@@ -431,6 +650,16 @@ export const useDailyNutrition = () => {
   
   const dailyLog = getDailyLog(selectedDate);
   const { totalNutrition } = dailyLog;
+  
+  if (!userProfile) {
+    return {
+      total: totalNutrition,
+      goals: { calories: 2000, protein: 150, carbs: 250, fat: 67 },
+      percentages: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      remaining: { calories: 2000, protein: 150, carbs: 250, fat: 67 },
+    };
+  }
+  
   const { nutritionGoals } = userProfile;
   
   const percentages = {

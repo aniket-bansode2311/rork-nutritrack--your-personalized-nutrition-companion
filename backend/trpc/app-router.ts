@@ -6,6 +6,7 @@ import profileUpdateRoute from "./routes/profile/update/route";
 import foodLogRoute from "./routes/food/log/route";
 import foodEntriesRoute from "./routes/food/entries/route";
 import foodDeleteRoute from "./routes/food/delete/route";
+import foodSearchRoute from "./routes/food/search/route";
 import recipesCreateRoute from "./routes/recipes/create/route";
 import recipesListRoute from "./routes/recipes/list/route";
 import customFoodsCreateRoute from "./routes/custom-foods/create/route";
@@ -39,6 +40,7 @@ export const appRouter = createTRPCRouter({
     log: foodLogRoute,
     entries: foodEntriesRoute,
     delete: foodDeleteRoute,
+    search: foodSearchRoute,
   }),
   recipes: createTRPCRouter({
     create: recipesCreateRoute,

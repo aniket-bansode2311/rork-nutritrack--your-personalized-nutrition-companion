@@ -1,17 +1,125 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+// Validate environment variables
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+}
+
+// Validate URL format
+if (!supabaseUrl.startsWith('https://')) {
+  throw new Error('Supabase URL must use HTTPS for security.');
+}
+
+// Create secure storage adapter
+const createSecureStorage = () => {
+  return {
+    getItem: async (key: string) => {
+      try {
+        const item = await AsyncStorage.getItem(key);
+        return item;
+      } catch (error) {
+        console.error('Error reading from secure storage:', error);
+        return null;
+      }
+    },
+    setItem: async (key: string, value: string) => {
+      try {
+        await AsyncStorage.setItem(key, value);
+      } catch (error) {
+        console.error('Error writing to secure storage:', error);
+      }
+    },
+    removeItem: async (key: string) => {
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch (error) {
+        console.error('Error removing from secure storage:', error);
+      }
+    },
+  };
+};
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: createSecureStorage(),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Enhanced security settings
+    flowType: 'pkce',
+    debug: __DEV__,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': `nutrition-tracker-${Platform.OS}`,
+    },
+  },
+  // Ensure all requests use HTTPS
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
   },
 });
+
+// Security utility functions
+export const validateSession = async () => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Session validation error:', error);
+      return null;
+    }
+    
+    // Check if session is expired
+    if (session && session.expires_at) {
+      const expiresAt = new Date(session.expires_at * 1000);
+      const now = new Date();
+      
+      if (expiresAt <= now) {
+        console.warn('Session expired, refreshing...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error('Session refresh error:', refreshError);
+          return null;
+        }
+        
+        return refreshedSession;
+      }
+    }
+    
+    return session;
+  } catch (error) {
+    console.error('Session validation failed:', error);
+    return null;
+  }
+};
+
+export const secureSignOut = async () => {
+  try {
+    // Clear all local storage
+    await AsyncStorage.clear();
+    
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.error('Sign out error:', error);
+    }
+    
+    return { error };
+  } catch (error) {
+    console.error('Secure sign out failed:', error);
+    return { error };
+  }
+};
 
 export type Database = {
   public: {

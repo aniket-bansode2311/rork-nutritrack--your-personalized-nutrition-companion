@@ -11,12 +11,28 @@ const getFoodEntriesSchema = z.object({
 export default protectedProcedure
   .input(getFoodEntriesSchema)
   .query(async ({ input, ctx }) => {
+    // Optimized query with selective fields and better indexing
     let query = ctx.supabase
       .from('food_entries')
-      .select('*')
-      .eq('user_id', ctx.user.id)
-      .order('logged_at', { ascending: false });
+      .select(`
+        id,
+        food_name,
+        brand,
+        serving_size,
+        serving_unit,
+        calories,
+        protein,
+        carbs,
+        fat,
+        fiber,
+        sugar,
+        sodium,
+        meal_type,
+        logged_at
+      `)
+      .eq('user_id', ctx.user.id);
 
+    // Optimize date filtering for better index usage
     if (input.date) {
       const startOfDay = new Date(input.date);
       startOfDay.setHours(0, 0, 0, 0);
@@ -25,12 +41,15 @@ export default protectedProcedure
       
       query = query
         .gte('logged_at', startOfDay.toISOString())
-        .lte('logged_at', endOfDay.toISOString());
+        .lt('logged_at', endOfDay.toISOString());
     }
 
     if (input.meal_type) {
       query = query.eq('meal_type', input.meal_type);
     }
+
+    // Apply ordering after filtering for better performance
+    query = query.order('logged_at', { ascending: false });
 
     if (input.limit) {
       query = query.limit(input.limit);

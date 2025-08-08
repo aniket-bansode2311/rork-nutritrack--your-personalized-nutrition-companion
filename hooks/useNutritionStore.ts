@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { DailyLog, FoodItem, MealEntry, UserProfile, Recipe, RecipeEntry } from '@/types/nutrition';
@@ -54,48 +54,81 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
-  // Fetch user profile
-  const profileQuery = trpc.profile.get.useQuery();
-  
-  // Fetch food entries for selected date
-  const foodEntriesQuery = trpc.food.entries.useQuery({
-    date: selectedDate,
+  // Fetch user profile with caching
+  const profileQuery = trpc.profile.get.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
   
-  // Fetch custom foods
-  const customFoodsQuery = trpc.customFoods.list.useQuery({});
+  // Fetch food entries for selected date with optimized caching
+  const foodEntriesQuery = trpc.food.entries.useQuery({
+    date: selectedDate,
+  }, {
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    placeholderData: (previousData) => previousData,
+  });
   
-  // Fetch recipes
-  const recipesQuery = trpc.recipes.list.useQuery({});
+  // Fetch custom foods with long cache time
+  const customFoodsQuery = trpc.customFoods.list.useQuery({}, {
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
   
-  // Mutations
+  // Fetch recipes with long cache time
+  const recipesQuery = trpc.recipes.list.useQuery({}, {
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
+  
+  // Optimized mutations with selective invalidation
   const logFoodMutation = trpc.food.log.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['food', 'entries'] });
+    onSuccess: (newEntry) => {
+      // Optimistic update instead of full invalidation
+      queryClient.setQueryData(
+        [['food', 'entries'], { input: { date: selectedDate }, type: 'query' }],
+        (oldData: any) => oldData ? [...oldData, newEntry] : [newEntry]
+      );
     },
   });
   
   const deleteFoodMutation = trpc.food.delete.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['food', 'entries'] });
+    onSuccess: (_, variables) => {
+      // Optimistic update
+      queryClient.setQueryData(
+        [['food', 'entries'], { input: { date: selectedDate }, type: 'query' }],
+        (oldData: any) => oldData ? oldData.filter((entry: any) => entry.id !== variables.id) : []
+      );
     },
   });
   
   const updateProfileMutation = trpc.profile.update.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    onSuccess: (updatedProfile) => {
+      // Direct cache update
+      queryClient.setQueryData(
+        [['profile', 'get'], { type: 'query' }],
+        updatedProfile
+      );
     },
   });
   
   const createCustomFoodMutation = trpc.customFoods.create.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customFoods'] });
+    onSuccess: (newFood) => {
+      // Optimistic update
+      queryClient.setQueryData(
+        [['customFoods', 'list'], { input: {}, type: 'query' }],
+        (oldData: any) => oldData ? [...oldData, newFood] : [newFood]
+      );
     },
   });
   
   const createRecipeMutation = trpc.recipes.create.useMutation({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+    onSuccess: (newRecipe) => {
+      // Optimistic update
+      queryClient.setQueryData(
+        [['recipes', 'list'], { input: {}, type: 'query' }],
+        (oldData: any) => oldData ? [...oldData, newRecipe] : [newRecipe]
+      );
     },
   });
 
@@ -223,10 +256,8 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     saveFavorites();
   }, [favoriteFoods, favoriteRecipes]);
 
-  // Refetch food entries when date changes
-  useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ['food', 'entries'] });
-  }, [selectedDate, queryClient]);
+  // Optimized date change handling - no need to invalidate, React Query handles this automatically
+  // The query key includes the date, so changing the date will fetch new data
 
   // Get meals for the selected date
   const getMealsForDate = (date: string) => {
@@ -312,14 +343,29 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     }
   };
 
-  // Search food items (includes basic foods and custom foods)
+  // Optimized search with debouncing
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
+  
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  
   const foodSearchQuery = trpc.food.search.useQuery(
-    { query: searchQuery },
-    { enabled: searchQuery.length > 0 }
+    { query: debouncedSearchQuery },
+    { 
+      enabled: debouncedSearchQuery.length > 2,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
+    }
   );
 
-  const searchFoodItems = (query: string) => {
+  // Memoized search function
+  const searchFoodItems = useCallback((query: string) => {
     if (!query.trim()) return [];
     
     const lowerQuery = query.toLowerCase().trim();
@@ -354,7 +400,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     
     // Combine results, prioritizing custom foods
     return [...customResults, ...basicResults];
-  };
+  }, [customFoods, foodSearchQuery.data, searchQuery]);
 
   // Add a custom food item
   const addFoodItem = async (item: Omit<FoodItem, 'id'>) => {
@@ -393,8 +439,8 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     }
   };
   
-  // Get frequent foods based on meal entries
-  const getFrequentFoods = () => {
+  // Memoized frequent foods calculation
+  const getFrequentFoods = useMemo(() => {
     const foodCounts = new Map<string, { count: number; food: FoodItem; lastUsed: string }>();
     
     // Count food usage in the last 30 days
@@ -430,7 +476,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       })
       .map(item => item.food)
       .slice(0, 10); // Return top 10
-  };
+  }, [mealEntries]);
   
   // Get favorite foods
   const getFavorites = () => {
@@ -639,8 +685,11 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
 export const useMealsByType = (mealType: MealEntry['mealType']) => {
   const { mealEntries, selectedDate } = useNutrition();
   
-  return mealEntries.filter(
-    (entry) => entry.date === selectedDate && entry.mealType === mealType
+  return useMemo(() => 
+    mealEntries.filter(
+      (entry) => entry.date === selectedDate && entry.mealType === mealType
+    ),
+    [mealEntries, selectedDate, mealType]
   );
 };
 
@@ -648,36 +697,38 @@ export const useMealsByType = (mealType: MealEntry['mealType']) => {
 export const useDailyNutrition = () => {
   const { getDailyLog, selectedDate, userProfile } = useNutrition();
   
-  const dailyLog = getDailyLog(selectedDate);
-  const { totalNutrition } = dailyLog;
-  
-  if (!userProfile) {
+  return useMemo(() => {
+    const dailyLog = getDailyLog(selectedDate);
+    const { totalNutrition } = dailyLog;
+    
+    if (!userProfile) {
+      return {
+        total: totalNutrition,
+        goals: { calories: 2000, protein: 150, carbs: 250, fat: 67 },
+        percentages: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        remaining: { calories: 2000, protein: 150, carbs: 250, fat: 67 },
+      };
+    }
+    
+    const { nutritionGoals } = userProfile;
+    
+    const percentages = {
+      calories: (totalNutrition.calories / nutritionGoals.calories) * 100,
+      protein: (totalNutrition.protein / nutritionGoals.protein) * 100,
+      carbs: (totalNutrition.carbs / nutritionGoals.carbs) * 100,
+      fat: (totalNutrition.fat / nutritionGoals.fat) * 100,
+    };
+    
     return {
       total: totalNutrition,
-      goals: { calories: 2000, protein: 150, carbs: 250, fat: 67 },
-      percentages: { calories: 0, protein: 0, carbs: 0, fat: 0 },
-      remaining: { calories: 2000, protein: 150, carbs: 250, fat: 67 },
+      goals: nutritionGoals,
+      percentages,
+      remaining: {
+        calories: nutritionGoals.calories - totalNutrition.calories,
+        protein: nutritionGoals.protein - totalNutrition.protein,
+        carbs: nutritionGoals.carbs - totalNutrition.carbs,
+        fat: nutritionGoals.fat - totalNutrition.fat,
+      },
     };
-  }
-  
-  const { nutritionGoals } = userProfile;
-  
-  const percentages = {
-    calories: (totalNutrition.calories / nutritionGoals.calories) * 100,
-    protein: (totalNutrition.protein / nutritionGoals.protein) * 100,
-    carbs: (totalNutrition.carbs / nutritionGoals.carbs) * 100,
-    fat: (totalNutrition.fat / nutritionGoals.fat) * 100,
-  };
-  
-  return {
-    total: totalNutrition,
-    goals: nutritionGoals,
-    percentages,
-    remaining: {
-      calories: nutritionGoals.calories - totalNutrition.calories,
-      protein: nutritionGoals.protein - totalNutrition.protein,
-      carbs: nutritionGoals.carbs - totalNutrition.carbs,
-      fat: nutritionGoals.fat - totalNutrition.fat,
-    },
-  };
+  }, [getDailyLog, selectedDate, userProfile]);
 };

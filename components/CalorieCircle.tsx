@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -10,20 +10,31 @@ interface CalorieCircleProps {
   size?: number;
 }
 
-export const CalorieCircle: React.FC<CalorieCircleProps> = ({
+const CalorieCircleComponent: React.FC<CalorieCircleProps> = ({
   consumed,
   goal,
   size = 180,
 }) => {
-  const strokeWidth = size * 0.07;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+  // Memoize expensive calculations
+  const circleData = useMemo(() => {
+    const strokeWidth = size * 0.07;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const percentage = Math.min(100, (consumed / goal) * 100);
+    const strokeDashoffset = circumference - (circumference * percentage) / 100;
+    const remaining = Math.max(0, goal - consumed);
+    
+    return {
+      strokeWidth,
+      radius,
+      circumference,
+      percentage,
+      strokeDashoffset,
+      remaining,
+    };
+  }, [consumed, goal, size]);
   
-  // Calculate percentage, capped at 100%
-  const percentage = Math.min(100, (consumed / goal) * 100);
-  const strokeDashoffset = circumference - (circumference * percentage) / 100;
-  
-  const remaining = Math.max(0, goal - consumed);
+  const { strokeWidth, radius, circumference, strokeDashoffset, remaining } = circleData;
   
   return (
     <View style={styles.container} testID="calorie-circle">
@@ -61,6 +72,10 @@ export const CalorieCircle: React.FC<CalorieCircleProps> = ({
     </View>
   );
 };
+
+CalorieCircleComponent.displayName = 'CalorieCircle';
+
+export const CalorieCircle = React.memo(CalorieCircleComponent);
 
 const styles = StyleSheet.create({
   container: {

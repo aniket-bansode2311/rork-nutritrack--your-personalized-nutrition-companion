@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Settings, Camera, Sparkles, Plus, TrendingUp, Target } from 'lucide-react-native';
@@ -12,7 +12,7 @@ import { MealSection } from '@/components/MealSection';
 import InsightPreviewCard from '@/components/insights/InsightPreviewCard';
 import { useDailyNutrition, useNutrition, useMealsByType } from '@/hooks/useNutritionStore';
 
-export default function DashboardScreen() {
+const DashboardScreenComponent: React.FC = () => {
   const router = useRouter();
   const { selectedDate, setSelectedDate, userProfile, isLoading } = useNutrition();
   const { total, goals, remaining } = useDailyNutrition();
@@ -23,25 +23,46 @@ export default function DashboardScreen() {
   const dinnerMeals = useMealsByType('dinner');
   const snackMeals = useMealsByType('snack');
   
-  // Calculate calories for each meal type
-  const calculateMealCalories = (meals: any[]) => {
-    return meals.reduce((total, meal) => {
-      return total + (meal.foodItem.calories * meal.servings);
-    }, 0);
-  };
+  // Memoize calorie calculations
+  const mealCalories = useMemo(() => {
+    const calculateMealCalories = (meals: any[]) => {
+      return meals.reduce((total, meal) => {
+        return total + (meal.foodItem.calories * meal.servings);
+      }, 0);
+    };
+    
+    return {
+      breakfast: calculateMealCalories(breakfastMeals),
+      lunch: calculateMealCalories(lunchMeals),
+      dinner: calculateMealCalories(dinnerMeals),
+      snack: calculateMealCalories(snackMeals),
+    };
+  }, [breakfastMeals, lunchMeals, dinnerMeals, snackMeals]);
   
-  const breakfastCalories = calculateMealCalories(breakfastMeals);
-  const lunchCalories = calculateMealCalories(lunchMeals);
-  const dinnerCalories = calculateMealCalories(dinnerMeals);
-  const snackCalories = calculateMealCalories(snackMeals);
-  
-  const navigateToProfile = () => {
+  // Memoize navigation handlers
+  const navigateToProfile = useCallback(() => {
     router.push('/profile');
-  };
+  }, [router]);
 
-  const navigateToGoalReview = () => {
+  const navigateToGoalReview = useCallback(() => {
     router.push('/goal-review');
-  };
+  }, [router]);
+  
+  const navigateToAIFoodScan = useCallback(() => {
+    router.push('/ai-food-scan');
+  }, [router]);
+  
+  const navigateToBarcodeScanner = useCallback(() => {
+    router.push('/barcode-scanner');
+  }, [router]);
+  
+  const navigateToCreateFood = useCallback(() => {
+    router.push('/create-food');
+  }, [router]);
+  
+  const navigateToRecipes = useCallback(() => {
+    router.push('/recipes');
+  }, [router]);
   
   if (isLoading) {
     return (
@@ -109,7 +130,7 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>AI-Powered Logging</Text>
           <TouchableOpacity 
             style={styles.aiButton}
-            onPress={() => router.push('/ai-food-scan')}
+            onPress={navigateToAIFoodScan}
             testID="ai-food-scan"
           >
             <Camera size={24} color={colors.white} />
@@ -130,28 +151,28 @@ export default function DashboardScreen() {
           title="Breakfast"
           mealType="breakfast"
           entries={breakfastMeals}
-          totalCalories={breakfastCalories}
+          totalCalories={mealCalories.breakfast}
         />
         
         <MealSection
           title="Lunch"
           mealType="lunch"
           entries={lunchMeals}
-          totalCalories={lunchCalories}
+          totalCalories={mealCalories.lunch}
         />
         
         <MealSection
           title="Dinner"
           mealType="dinner"
           entries={dinnerMeals}
-          totalCalories={dinnerCalories}
+          totalCalories={mealCalories.dinner}
         />
         
         <MealSection
           title="Snacks"
           mealType="snack"
           entries={snackMeals}
-          totalCalories={snackCalories}
+          totalCalories={mealCalories.snack}
         />
         
         {/* Quick Actions */}
@@ -160,7 +181,7 @@ export default function DashboardScreen() {
           <View style={styles.quickActions}>
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => router.push('/barcode-scanner')}
+              onPress={navigateToBarcodeScanner}
               testID="barcode-scanner"
             >
               <View style={styles.quickActionIcon}>
@@ -171,7 +192,7 @@ export default function DashboardScreen() {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => router.push('/create-food')}
+              onPress={navigateToCreateFood}
               testID="create-food"
             >
               <View style={styles.quickActionIcon}>
@@ -182,7 +203,7 @@ export default function DashboardScreen() {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => router.push('/recipes')}
+              onPress={navigateToRecipes}
               testID="view-recipes"
             >
               <View style={styles.quickActionIcon}>
@@ -195,7 +216,11 @@ export default function DashboardScreen() {
       </ScrollView>
     </View>
   );
-}
+};
+
+DashboardScreenComponent.displayName = 'DashboardScreen';
+
+export default React.memo(DashboardScreenComponent);
 
 const styles = StyleSheet.create({
   container: {

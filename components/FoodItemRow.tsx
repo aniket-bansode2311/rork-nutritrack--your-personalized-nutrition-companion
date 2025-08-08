@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MoreVertical } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -11,19 +11,34 @@ interface FoodItemRowProps {
   entry: MealEntry;
 }
 
-export const FoodItemRow: React.FC<FoodItemRowProps> = ({ entry }) => {
+const FoodItemRowComponent: React.FC<FoodItemRowProps> = ({ entry }) => {
   const router = useRouter();
   const { removeMealEntry } = useNutrition();
   const { foodItem, servings } = entry;
   
-  const totalCalories = foodItem.calories * servings;
+  // Memoize expensive calculations
+  const displayData = useMemo(() => {
+    const totalCalories = foodItem.calories * servings;
+    const totalWeight = servings * foodItem.servingSize;
+    const servingText = `${servings} ${servings === 1 ? 'serving' : 'servings'} (${totalWeight} ${foodItem.servingUnit})`;
+    
+    return {
+      totalCalories,
+      servingText,
+    };
+  }, [foodItem.calories, foodItem.servingSize, foodItem.servingUnit, servings]);
   
-  const handlePress = () => {
+  // Memoize event handlers
+  const handlePress = useCallback(() => {
     router.push({
       pathname: '/food-details',
       params: { entryId: entry.id },
     });
-  };
+  }, [router, entry.id]);
+  
+  const handleRemove = useCallback(() => {
+    removeMealEntry(entry.id);
+  }, [removeMealEntry, entry.id]);
   
   return (
     <TouchableOpacity 
@@ -37,15 +52,15 @@ export const FoodItemRow: React.FC<FoodItemRowProps> = ({ entry }) => {
           <Text style={styles.brand}>{foodItem.brand}</Text>
         )}
         <Text style={styles.serving}>
-          {servings} {servings === 1 ? 'serving' : 'servings'} ({servings * foodItem.servingSize} {foodItem.servingUnit})
+          {displayData.servingText}
         </Text>
       </View>
       
       <View style={styles.caloriesContainer}>
-        <Text style={styles.calories}>{totalCalories.toFixed(0)} kcal</Text>
+        <Text style={styles.calories}>{displayData.totalCalories.toFixed(0)} kcal</Text>
         <TouchableOpacity 
           style={styles.moreButton}
-          onPress={() => removeMealEntry(entry.id)}
+          onPress={handleRemove}
           testID={`remove-food-${entry.id}`}
         >
           <MoreVertical size={16} color={colors.darkGray} />
@@ -54,6 +69,10 @@ export const FoodItemRow: React.FC<FoodItemRowProps> = ({ entry }) => {
     </TouchableOpacity>
   );
 };
+
+FoodItemRowComponent.displayName = 'FoodItemRow';
+
+export const FoodItemRow = React.memo(FoodItemRowComponent);
 
 const styles = StyleSheet.create({
   container: {

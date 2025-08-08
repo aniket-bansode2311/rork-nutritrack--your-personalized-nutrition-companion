@@ -1,12 +1,11 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Plus, Camera, ChefHat } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { colors } from '@/constants/colors';
-import { MealEntry, RecipeEntry } from '@/types/nutrition';
+import { MealEntry } from '@/types/nutrition';
 import { FoodItemRow } from './FoodItemRow';
-import { useNutrition } from '@/hooks/useNutritionStore';
 
 interface MealSectionProps {
   title: string;
@@ -15,59 +14,39 @@ interface MealSectionProps {
   totalCalories: number;
 }
 
-export const MealSection: React.FC<MealSectionProps> = ({
+const MealSectionComponent: React.FC<MealSectionProps> = ({
   title,
   mealType,
   entries,
   totalCalories,
 }) => {
   const router = useRouter();
-  const { recipeEntries, selectedDate, removeRecipeEntry } = useNutrition();
   
-  // Get recipe entries for this meal type and date
-  const mealRecipeEntries = recipeEntries.filter(
-    entry => entry.mealType === mealType && entry.date === selectedDate
-  );
-  
-  const handleAddFood = () => {
+  // Memoize navigation handlers
+  const handleAddFood = useCallback(() => {
     router.push({
       pathname: '/add-food',
       params: { mealType },
     });
-  };
+  }, [router, mealType]);
   
-  const handleScanFood = () => {
+  const handleScanFood = useCallback(() => {
     router.push({
       pathname: '/ai-food-scan',
       params: { mealType },
     });
-  };
+  }, [router, mealType]);
   
-  const handleAddRecipe = () => {
+  const handleAddRecipe = useCallback(() => {
     router.push('/recipes');
-  };
-  
-  const handleRecipePress = (recipeId: string) => {
-    router.push(`/recipe-details?id=${recipeId}`);
-  };
-  
-  const handleRemoveRecipe = (entryId: string) => {
-    removeRecipeEntry(entryId);
-  };
-  
-  // Calculate total calories including recipes
-  const recipeCalories = mealRecipeEntries.reduce((total, entry) => {
-    return total + (entry.recipe.nutritionPerServing.calories * entry.servings);
-  }, 0);
-  
-  const totalMealCalories = totalCalories + recipeCalories;
+  }, [router]);
   
   return (
     <View style={styles.container} testID={`meal-section-${mealType}`}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.calories}>{totalMealCalories.toFixed(0)} kcal</Text>
+          <Text style={styles.calories}>{totalCalories.toFixed(0)} kcal</Text>
         </View>
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
@@ -95,50 +74,24 @@ export const MealSection: React.FC<MealSectionProps> = ({
       </View>
       
       <View style={styles.foodList}>
-        {entries.length === 0 && mealRecipeEntries.length === 0 ? (
-          <Text style={styles.emptyText}>No food items or recipes added yet</Text>
+        {entries.length === 0 ? (
+          <Text style={styles.emptyText}>No food items added yet</Text>
         ) : (
-          <>
-            {/* Food entries */}
-            {entries.map((entry) => (
-              <FoodItemRow 
-                key={entry.id} 
-                entry={entry} 
-              />
-            ))}
-            
-            {/* Recipe entries */}
-            {mealRecipeEntries.map((recipeEntry) => (
-              <TouchableOpacity
-                key={recipeEntry.id}
-                style={styles.recipeRow}
-                onPress={() => handleRecipePress(recipeEntry.recipe.id)}
-                testID={`recipe-entry-${recipeEntry.id}`}
-              >
-                <View style={styles.recipeInfo}>
-                  <View style={styles.recipeHeader}>
-                    <ChefHat size={16} color={colors.primary} />
-                    <Text style={styles.recipeName}>{recipeEntry.recipe.name}</Text>
-                  </View>
-                  <Text style={styles.recipeDetails}>
-                    {recipeEntry.servings} serving{recipeEntry.servings !== 1 ? 's' : ''} • {Math.round(recipeEntry.recipe.nutritionPerServing.calories * recipeEntry.servings)} kcal
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.removeRecipeButton}
-                  onPress={() => handleRemoveRecipe(recipeEntry.id)}
-                  testID={`remove-recipe-${recipeEntry.id}`}
-                >
-                  <Text style={styles.removeRecipeText}>×</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
-          </>
+          entries.map((entry) => (
+            <FoodItemRow 
+              key={entry.id} 
+              entry={entry} 
+            />
+          ))
         )}
       </View>
     </View>
   );
 };
+
+MealSectionComponent.displayName = 'MealSection';
+
+export const MealSection = React.memo(MealSectionComponent);
 
 const styles = StyleSheet.create({
   container: {

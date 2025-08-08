@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -15,7 +15,7 @@ interface MacroRingProps {
   size?: number;
 }
 
-const MacroRing: React.FC<MacroRingProps> = ({
+const MacroRingComponent: React.FC<MacroRingProps> = ({
   protein,
   carbs,
   fat,
@@ -24,17 +24,31 @@ const MacroRing: React.FC<MacroRingProps> = ({
   fatGoal,
   size = 120,
 }) => {
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+  // Memoize expensive calculations
+  const ringData = useMemo(() => {
+    const strokeWidth = 8;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    
+    const proteinPercentage = Math.min(100, (protein / proteinGoal) * 100);
+    const carbsPercentage = Math.min(100, (carbs / carbsGoal) * 100);
+    const fatPercentage = Math.min(100, (fat / fatGoal) * 100);
+    
+    const proteinOffset = circumference - (circumference * proteinPercentage) / 100;
+    const carbsOffset = circumference - (circumference * carbsPercentage) / 100;
+    const fatOffset = circumference - (circumference * fatPercentage) / 100;
+    
+    return {
+      strokeWidth,
+      radius,
+      circumference,
+      proteinOffset,
+      carbsOffset,
+      fatOffset,
+    };
+  }, [protein, carbs, fat, proteinGoal, carbsGoal, fatGoal, size]);
   
-  const proteinPercentage = Math.min(100, (protein / proteinGoal) * 100);
-  const carbsPercentage = Math.min(100, (carbs / carbsGoal) * 100);
-  const fatPercentage = Math.min(100, (fat / fatGoal) * 100);
-  
-  const proteinOffset = circumference - (circumference * proteinPercentage) / 100;
-  const carbsOffset = circumference - (circumference * carbsPercentage) / 100;
-  const fatOffset = circumference - (circumference * fatPercentage) / 100;
+  const { strokeWidth, radius, circumference, proteinOffset, carbsOffset, fatOffset } = ringData;
   
   return (
     <View style={styles.ringContainer}>
@@ -107,8 +121,33 @@ const MacroRing: React.FC<MacroRingProps> = ({
   );
 };
 
-export const NutritionSummary: React.FC = () => {
+MacroRingComponent.displayName = 'MacroRing';
+const MacroRing = React.memo(MacroRingComponent);
+
+const NutritionSummaryComponent: React.FC = () => {
   const { total, goals } = useDailyNutrition();
+  
+  // Memoize macro stats to prevent unnecessary re-renders
+  const macroStats = useMemo(() => [
+    {
+      label: 'Protein',
+      value: total.protein,
+      goal: goals.protein,
+      color: colors.success,
+    },
+    {
+      label: 'Carbs',
+      value: total.carbs,
+      goal: goals.carbs,
+      color: colors.warning,
+    },
+    {
+      label: 'Fat',
+      value: total.fat,
+      goal: goals.fat,
+      color: colors.secondary,
+    },
+  ], [total.protein, total.carbs, total.fat, goals.protein, goals.carbs, goals.fat]);
   
   return (
     <View style={styles.container} testID="nutrition-summary">
@@ -125,37 +164,28 @@ export const NutritionSummary: React.FC = () => {
         />
         
         <View style={styles.macroStats}>
-          <View style={styles.macroStat}>
-            <View style={[styles.macroIndicator, { backgroundColor: colors.success }]} />
-            <View style={styles.macroInfo}>
-              <Text style={styles.macroLabel}>Protein</Text>
-              <Text style={styles.macroValue}>{total.protein.toFixed(0)}g / {goals.protein}g</Text>
-              <Text style={styles.macroPercentage}>{((total.protein / goals.protein) * 100).toFixed(0)}%</Text>
-            </View>
-          </View>
-          
-          <View style={styles.macroStat}>
-            <View style={[styles.macroIndicator, { backgroundColor: colors.warning }]} />
-            <View style={styles.macroInfo}>
-              <Text style={styles.macroLabel}>Carbs</Text>
-              <Text style={styles.macroValue}>{total.carbs.toFixed(0)}g / {goals.carbs}g</Text>
-              <Text style={styles.macroPercentage}>{((total.carbs / goals.carbs) * 100).toFixed(0)}%</Text>
-            </View>
-          </View>
-          
-          <View style={styles.macroStat}>
-            <View style={[styles.macroIndicator, { backgroundColor: colors.secondary }]} />
-            <View style={styles.macroInfo}>
-              <Text style={styles.macroLabel}>Fat</Text>
-              <Text style={styles.macroValue}>{total.fat.toFixed(0)}g / {goals.fat}g</Text>
-              <Text style={styles.macroPercentage}>{((total.fat / goals.fat) * 100).toFixed(0)}%</Text>
-            </View>
-          </View>
+          {macroStats.map((macro) => {
+            const percentage = ((macro.value / macro.goal) * 100).toFixed(0);
+            return (
+              <View key={macro.label} style={styles.macroStat}>
+                <View style={[styles.macroIndicator, { backgroundColor: macro.color }]} />
+                <View style={styles.macroInfo}>
+                  <Text style={styles.macroLabel}>{macro.label}</Text>
+                  <Text style={styles.macroValue}>{macro.value.toFixed(0)}g / {macro.goal}g</Text>
+                  <Text style={styles.macroPercentage}>{percentage}%</Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
       </View>
     </View>
   );
 };
+
+NutritionSummaryComponent.displayName = 'NutritionSummary';
+
+export const NutritionSummary = React.memo(NutritionSummaryComponent);
 
 const styles = StyleSheet.create({
   container: {

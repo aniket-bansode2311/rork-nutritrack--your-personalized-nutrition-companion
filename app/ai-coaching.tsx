@@ -22,7 +22,7 @@ export default function AICoachingScreen() {
     {
       id: '1',
       role: 'assistant',
-      content: `Hello ${userProfile.name}! I'm your AI nutrition coach. I've analyzed your current intake and I'm here to help you achieve your health goals. What would you like to discuss today?`,
+      content: `Hello ${userProfile?.name || 'there'}! I'm your AI nutrition coach. I've analyzed your current intake and I'm here to help you achieve your health goals. What would you like to discuss today?`,
       timestamp: new Date(),
     },
   ]);
@@ -30,6 +30,10 @@ export default function AICoachingScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
   const generateCoachingContext = () => {
+    if (!userProfile) {
+      return `You are a supportive, knowledgeable nutrition coach. The user is just getting started with their nutrition journey. Provide general, encouraging advice about healthy eating habits.`;
+    }
+    
     return `User Profile:
 - Name: ${userProfile.name}
 - Age: ${userProfile.age}, Gender: ${userProfile.gender}
@@ -122,7 +126,7 @@ You are a supportive, knowledgeable nutrition coach. Provide personalized advice
   
   const renderTabContent = () => {
     if (activeTab === 'insights') {
-      return <InsightsDashboard userId={userProfile.id} />;
+      return <InsightsDashboard userId={userProfile?.id || ''} />;
     }
 
     return (

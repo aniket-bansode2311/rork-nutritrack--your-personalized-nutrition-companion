@@ -54,10 +54,17 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
-  // Fetch user profile with caching
+  // Fetch user profile with caching and error handling
   const profileQuery = trpc.profile.get.useQuery(undefined, {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error?.message?.includes('AUTH_ERROR')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
   
   // Fetch food entries for selected date with optimized caching
@@ -67,18 +74,36 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
     placeholderData: (previousData) => previousData,
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('AUTH_ERROR')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
   
   // Fetch custom foods with long cache time
   const customFoodsQuery = trpc.customFoods.list.useQuery({}, {
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('AUTH_ERROR')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
   
   // Fetch recipes with long cache time
   const recipesQuery = trpc.recipes.list.useQuery({}, {
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('AUTH_ERROR')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
   
   // Optimized mutations with selective invalidation
@@ -361,6 +386,12 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       enabled: debouncedSearchQuery.length > 2,
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 30 * 60 * 1000, // 30 minutes
+      retry: (failureCount, error) => {
+        if (error?.message?.includes('AUTH_ERROR')) {
+          return false;
+        }
+        return failureCount < 2;
+      },
     }
   );
 

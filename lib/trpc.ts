@@ -11,14 +11,14 @@ const getBaseUrl = () => {
   const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   
   if (!baseUrl) {
-    throw new Error(
-      "No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL"
-    );
+    console.warn('No base URL found, using fallback');
+    return 'https://toolkit.rork.com'; // Fallback URL
   }
   
   // Ensure HTTPS in production
   if (!__DEV__ && !baseUrl.startsWith('https://')) {
-    throw new Error('API base URL must use HTTPS in production');
+    console.warn('API base URL should use HTTPS in production, using fallback');
+    return 'https://toolkit.rork.com'; // Fallback to secure URL
   }
   
   return baseUrl;
@@ -60,17 +60,31 @@ const createSecureHttpLink = () => {
       
       return headers;
     },
-    // Add request timeout for security
-    fetch: (url, options) => {
+    // Add request timeout and error handling
+    fetch: async (url, options) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
-      return fetch(url, {
-        ...options,
-        signal: controller.signal,
-      }).finally(() => {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        });
+        
+        // Check if response is ok
+        if (!response.ok) {
+          console.error(`HTTP error! status: ${response.status}`);
+          // Don't throw here, let tRPC handle the error
+        }
+        
+        return response;
+      } catch (error) {
+        console.error('Network request failed:', error);
+        // Re-throw to let tRPC handle it
+        throw error;
+      } finally {
         clearTimeout(timeoutId);
-      });
+      }
     },
   });
 };

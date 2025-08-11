@@ -41,7 +41,7 @@ const getAuthToken = async (): Promise<string | null> => {
   }
 };
 
-// Create secure HTTP link with authentication
+// Create secure HTTP link with authentication and better error handling
 const createSecureHttpLink = () => {
   return httpLink({
     url: `${getBaseUrl()}/api/trpc`,
@@ -60,27 +60,47 @@ const createSecureHttpLink = () => {
       
       return headers;
     },
-    // Add request timeout and error handling
+    // Enhanced fetch with better error handling and retries
     fetch: async (url, options) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       try {
+        console.log('Making tRPC request to:', url);
+        
         const response = await fetch(url, {
           ...options,
           signal: controller.signal,
         });
         
+        console.log('tRPC response status:', response.status);
+        
         // Check if response is ok
         if (!response.ok) {
-          console.error(`HTTP error! status: ${response.status}`);
-          // Don't throw here, let tRPC handle the error
+          console.error(`HTTP error! status: ${response.status}, statusText: ${response.statusText}`);
+          
+          // Handle specific error cases
+          if (response.status === 401) {
+            throw new Error('AUTH_ERROR: Unauthorized');
+          } else if (response.status >= 500) {
+            throw new Error('SERVER_ERROR: Internal server error');
+          } else if (response.status === 404) {
+            throw new Error('NOT_FOUND: Endpoint not found');
+          }
         }
         
         return response;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Network request failed:', error);
-        // Re-throw to let tRPC handle it
+        
+        // Handle different types of errors
+        if (error.name === 'AbortError') {
+          throw new Error('TIMEOUT_ERROR: Request timed out');
+        } else if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
+          throw new Error('NETWORK_ERROR: Unable to connect to server');
+        }
+        
+        // Re-throw the error for tRPC to handle
         throw error;
       } finally {
         clearTimeout(timeoutId);

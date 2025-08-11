@@ -59,11 +59,32 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
     retry: (failureCount, error) => {
-      // Don't retry on auth errors
-      if (error?.message?.includes('AUTH_ERROR')) {
+      // Don't retry on auth errors or network errors
+      if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
         return false;
       }
-      return failureCount < 3;
+      return failureCount < 2;
+    },
+    // Provide fallback data when network fails
+    placeholderData: () => {
+      // Return a basic profile structure to prevent null errors
+      return {
+        id: 'offline-user',
+        name: 'User',
+        email: '',
+        weight: 70,
+        height: 170,
+        age: 30,
+        gender: 'other' as const,
+        activity_level: 'moderate' as const,
+        goal: 'maintain' as const,
+        calories_goal: 2000,
+        protein_goal: 150,
+        carbs_goal: 250,
+        fat_goal: 67,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
     },
   });
   
@@ -73,9 +94,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   }, {
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
-    placeholderData: (previousData) => previousData,
+    placeholderData: (previousData) => previousData || [],
     retry: (failureCount, error) => {
-      if (error?.message?.includes('AUTH_ERROR')) {
+      if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
         return false;
       }
       return failureCount < 2;
@@ -86,8 +107,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const customFoodsQuery = trpc.customFoods.list.useQuery({}, {
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
+    placeholderData: [],
     retry: (failureCount, error) => {
-      if (error?.message?.includes('AUTH_ERROR')) {
+      if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
         return false;
       }
       return failureCount < 2;
@@ -98,8 +120,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const recipesQuery = trpc.recipes.list.useQuery({}, {
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
+    placeholderData: [],
     retry: (failureCount, error) => {
-      if (error?.message?.includes('AUTH_ERROR')) {
+      if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
         return false;
       }
       return failureCount < 2;
@@ -386,8 +409,9 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       enabled: debouncedSearchQuery.length > 2,
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 30 * 60 * 1000, // 30 minutes
+      placeholderData: [],
       retry: (failureCount, error) => {
-        if (error?.message?.includes('AUTH_ERROR')) {
+        if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
           return false;
         }
         return failureCount < 2;

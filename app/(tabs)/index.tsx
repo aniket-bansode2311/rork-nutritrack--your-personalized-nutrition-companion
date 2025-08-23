@@ -1,7 +1,8 @@
 import React, { useMemo, useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Settings, Camera, Sparkles, Plus, TrendingUp, Target } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { colors } from '@/constants/colors';
 import { CalorieCircle } from '@/components/CalorieCircle';
@@ -17,6 +18,7 @@ import { useToast } from '@/components/ToastProvider';
 
 const DashboardScreenComponent: React.FC = () => {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { selectedDate, setSelectedDate, userProfile, isLoading } = useNutrition();
   const { total, goals, remaining } = useDailyNutrition();
   const { errorState, handleError, handleAsyncOperation } = useErrorHandler({
@@ -96,8 +98,13 @@ const DashboardScreenComponent: React.FC = () => {
       error={errorState.hasError ? errorState.error : null}
       loadingMessage="Loading your nutrition dashboard..."
       onRetry={() => {
-        // Trigger a refetch of data
-        window.location.reload();
+        // Platform-aware retry logic
+        if (Platform.OS === 'web') {
+          window.location.reload();
+        } else {
+          // On mobile, refetch queries instead of reloading
+          queryClient.refetchQueries({ type: 'active' });
+        }
       }}
     >
       <DashboardContent

@@ -86,6 +86,8 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         updated_at: new Date().toISOString(),
       };
     },
+    // Enable offline-first behavior
+    networkMode: 'offlineFirst',
   });
   
   // Fetch food entries for selected date with optimized caching

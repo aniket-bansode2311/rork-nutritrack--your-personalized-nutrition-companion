@@ -1,40 +1,53 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+import NetInfo from '@react-native-community/netinfo';
 import { NutritionProvider } from "@/hooks/useNutritionStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { trpc, trpcClient } from "@/lib/trpc";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/ToastProvider";
+import { NetworkStatus } from "@/components/NetworkStatus";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-// Create query client with better error handling
+// Create query client with better error handling and network awareness
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {
         // Don't retry on network errors or auth errors
-        if (error?.message?.includes('NETWORK_ERROR') || error?.message?.includes('AUTH_ERROR')) {
+        if (error?.message?.includes('NETWORK_ERROR') || 
+            error?.message?.includes('AUTH_ERROR') ||
+            error?.message?.includes('Failed to fetch') ||
+            error?.message?.includes('AbortError')) {
           return false;
         }
         return failureCount < 2;
       },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 30 * 60 * 1000, // 30 minutes
+      networkMode: 'offlineFirst', // Allow cached data when offline
+      refetchOnWindowFocus: false, // Disable refetch on window focus for mobile
+      refetchOnReconnect: true, // Refetch when network reconnects
     },
     mutations: {
       retry: (failureCount, error) => {
-        // Don't retry mutations on auth errors
-        if (error?.message?.includes('AUTH_ERROR')) {
+        // Don't retry mutations on auth errors or network errors
+        if (error?.message?.includes('AUTH_ERROR') ||
+            error?.message?.includes('NETWORK_ERROR') ||
+            error?.message?.includes('Failed to fetch')) {
           return false;
         }
         return failureCount < 1;
       },
+      networkMode: 'online', // Only run mutations when online
     },
   },
 });
@@ -156,9 +169,33 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
   useEffect(() => {
     SplashScreen.hideAsync();
+    
+    // Monitor network status
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const online = state.isConnected === true && state.isInternetReachable !== false;
+      setIsOnline(online);
+      
+      if (online) {
+        console.log('Network connected, refetching queries');
+        queryClient.refetchQueries({ type: 'active' });
+      } else {
+        console.log('Network disconnected');
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  const handleRetry = () => {
+    console.log('Retrying network requests');
+    queryClient.refetchQueries({ type: 'active' });
+  };
 
   return (
     <ErrorBoundary
@@ -171,6 +208,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
+              <NetworkStatus isOnline={isOnline} onRetry={handleRetry} />
               <NutritionProvider>
                 <RootLayoutNav />
               </NutritionProvider>

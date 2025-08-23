@@ -62,16 +62,28 @@ const createSecureHttpLink = () => {
     },
     // Enhanced fetch with better error handling and retries
     fetch: async (url, options) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      let controller: AbortController | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       
       try {
+        // Only create AbortController if not already provided
+        if (!options?.signal) {
+          controller = new AbortController();
+          timeoutId = setTimeout(() => {
+            if (controller && !controller.signal.aborted) {
+              controller.abort();
+            }
+          }, 30000); // 30 second timeout
+        }
+        
         console.log('Making tRPC request to:', url);
         
-        const response = await fetch(url, {
+        const fetchOptions = {
           ...options,
-          signal: controller.signal,
-        });
+          signal: options?.signal || controller?.signal,
+        };
+        
+        const response = await fetch(url, fetchOptions);
         
         console.log('tRPC response status:', response.status);
         
@@ -86,6 +98,8 @@ const createSecureHttpLink = () => {
             throw new Error('SERVER_ERROR: Internal server error');
           } else if (response.status === 404) {
             throw new Error('NOT_FOUND: Endpoint not found');
+          } else if (response.status === 0) {
+            throw new Error('NETWORK_ERROR: No network connection');
           }
         }
         
@@ -95,21 +109,30 @@ const createSecureHttpLink = () => {
         
         // Handle different types of errors
         if (error.name === 'AbortError') {
+          if (error.message?.includes('signal is aborted without reason')) {
+            throw new Error('NETWORK_ERROR: Request was cancelled');
+          }
           throw new Error('TIMEOUT_ERROR: Request timed out');
-        } else if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
+        } else if (error.message?.includes('Failed to fetch') || 
+                   error.message?.includes('Network request failed') ||
+                   error.message?.includes('TypeError: Failed to fetch')) {
           throw new Error('NETWORK_ERROR: Unable to connect to server');
+        } else if (error.code === 'NETWORK_ERROR' || error.code === 'ERR_NETWORK') {
+          throw new Error('NETWORK_ERROR: Network connection failed');
         }
         
         // Re-throw the error for tRPC to handle
         throw error;
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
       }
     },
   });
 };
 
-// Create the main client instance
+// Create the main client instance with retry logic
 let clientInstance: ReturnType<typeof trpc.createClient> | null = null;
 
 export const getTRPCClient = () => {
@@ -119,6 +142,11 @@ export const getTRPCClient = () => {
     });
   }
   return clientInstance;
+};
+
+// Reset client instance (useful for reconnection)
+export const resetTRPCClient = () => {
+  clientInstance = null;
 };
 
 // Export for backward compatibility

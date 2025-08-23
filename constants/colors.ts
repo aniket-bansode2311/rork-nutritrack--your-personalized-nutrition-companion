@@ -8,9 +8,10 @@ export const colors = {
   mediumGray: "#ADB5BD",
   darkGray: "#6C757D",
   danger: "#E76F51",
-  error: "#E76F51",
+  error: "#EF4444",
   white: "#FFFFFF",
   black: "#000000",
-  success: "#43AA8B",
-  warning: "#F8961E",
+  success: "#10B981",
+  warning: "#F59E0B",
+  info: "#3B82F6",
 };

@@ -3,13 +3,12 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-
 import { NutritionProvider } from "@/hooks/useNutritionStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { trpc, trpcClient } from "@/lib/trpc";
-import { colors } from "@/constants/colors";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { ToastProvider } from "@/components/ToastProvider";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -40,49 +39,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Error boundary component
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('App Error Boundary caught an error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={errorStyles.container}>
-          <Text style={errorStyles.title}>Something went wrong</Text>
-          <Text style={errorStyles.message}>
-            We&apos;re having trouble connecting to our servers. Please check your internet connection and try again.
-          </Text>
-          <TouchableOpacity
-            style={errorStyles.button}
-            onPress={() => {
-              this.setState({ hasError: false, error: undefined });
-              // Clear query cache to force refetch
-              queryClient.clear();
-            }}
-          >
-            <Text style={errorStyles.buttonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 function RootLayoutNav() {
   const { user, loading: authLoading, initialized } = useAuth();
@@ -204,51 +161,24 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('Root Error Boundary:', error, errorInfo);
+        // In production, send to error tracking service
+      }}
+    >
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <NutritionProvider>
-              <RootLayoutNav />
-            </NutritionProvider>
-          </GestureHandlerRootView>
+          <ToastProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <NutritionProvider>
+                <RootLayoutNav />
+              </NutritionProvider>
+            </GestureHandlerRootView>
+          </ToastProvider>
         </QueryClientProvider>
       </trpc.Provider>
     </ErrorBoundary>
   );
 }
 
-const errorStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 16,
-    color: colors.darkGray,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

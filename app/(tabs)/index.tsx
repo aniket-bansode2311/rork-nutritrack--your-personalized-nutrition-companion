@@ -11,11 +11,18 @@ import { HealthInsights } from '@/components/HealthInsights';
 import { MealSection } from '@/components/MealSection';
 import InsightPreviewCard from '@/components/insights/InsightPreviewCard';
 import { useDailyNutrition, useNutrition, useMealsByType } from '@/hooks/useNutritionStore';
+import { LoadingState } from '@/components/LoadingState';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useToast } from '@/components/ToastProvider';
 
 const DashboardScreenComponent: React.FC = () => {
   const router = useRouter();
   const { selectedDate, setSelectedDate, userProfile, isLoading } = useNutrition();
   const { total, goals, remaining } = useDailyNutrition();
+  const { errorState, handleError, handleAsyncOperation } = useErrorHandler({
+    showAlert: false, // We'll use toast instead
+  });
+  const { showError, showSuccess } = useToast();
   
   // Get meals by type for the selected date
   const breakfastMeals = useMealsByType('breakfast');
@@ -39,39 +46,119 @@ const DashboardScreenComponent: React.FC = () => {
     };
   }, [breakfastMeals, lunchMeals, dinnerMeals, snackMeals]);
   
-  // Memoize navigation handlers
-  const navigateToProfile = useCallback(() => {
-    router.push('/profile');
-  }, [router]);
+  // Memoize navigation handlers with error handling
+  const navigateToProfile = useCallback(async () => {
+    await handleAsyncOperation(async () => {
+      router.push('/profile');
+    }, 'navigation');
+  }, [router, handleAsyncOperation]);
 
-  const navigateToGoalReview = useCallback(() => {
-    router.push('/goal-review');
-  }, [router]);
+  const navigateToGoalReview = useCallback(async () => {
+    await handleAsyncOperation(async () => {
+      router.push('/goal-review');
+    }, 'navigation');
+  }, [router, handleAsyncOperation]);
   
-  const navigateToAIFoodScan = useCallback(() => {
-    router.push('/ai-food-scan');
-  }, [router]);
+  const navigateToAIFoodScan = useCallback(async () => {
+    await handleAsyncOperation(async () => {
+      router.push('/ai-food-scan');
+    }, 'navigation');
+  }, [router, handleAsyncOperation]);
   
-  const navigateToBarcodeScanner = useCallback(() => {
-    router.push('/barcode-scanner');
-  }, [router]);
+  const navigateToBarcodeScanner = useCallback(async () => {
+    await handleAsyncOperation(async () => {
+      router.push('/barcode-scanner');
+    }, 'navigation');
+  }, [router, handleAsyncOperation]);
   
-  const navigateToCreateFood = useCallback(() => {
-    router.push('/create-food');
-  }, [router]);
+  const navigateToCreateFood = useCallback(async () => {
+    await handleAsyncOperation(async () => {
+      router.push('/create-food');
+    }, 'navigation');
+  }, [router, handleAsyncOperation]);
   
-  const navigateToRecipes = useCallback(() => {
-    router.push('/recipes');
-  }, [router]);
+  const navigateToRecipes = useCallback(async () => {
+    await handleAsyncOperation(async () => {
+      router.push('/recipes');
+    }, 'navigation');
+  }, [router, handleAsyncOperation]);
   
-  if (isLoading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Loading your nutrition dashboard...</Text>
-      </View>
-    );
-  }
+  // Show error state if there's an error
+  React.useEffect(() => {
+    if (errorState.hasError && errorState.error) {
+      showError(errorState.error.message);
+    }
+  }, [errorState.hasError, errorState.error, showError]);
   
+  return (
+    <LoadingState
+      loading={isLoading}
+      error={errorState.hasError ? errorState.error : null}
+      loadingMessage="Loading your nutrition dashboard..."
+      onRetry={() => {
+        // Trigger a refetch of data
+        window.location.reload();
+      }}
+    >
+      <DashboardContent
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        userProfile={userProfile}
+        total={total}
+        goals={goals}
+        remaining={remaining}
+        mealCalories={mealCalories}
+        breakfastMeals={breakfastMeals}
+        lunchMeals={lunchMeals}
+        dinnerMeals={dinnerMeals}
+        snackMeals={snackMeals}
+        navigateToProfile={navigateToProfile}
+        navigateToAIFoodScan={navigateToAIFoodScan}
+        navigateToBarcodeScanner={navigateToBarcodeScanner}
+        navigateToCreateFood={navigateToCreateFood}
+        navigateToRecipes={navigateToRecipes}
+      />
+    </LoadingState>
+  );
+};
+
+interface DashboardContentProps {
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+  userProfile: any;
+  total: any;
+  goals: any;
+  remaining: any;
+  mealCalories: any;
+  breakfastMeals: any[];
+  lunchMeals: any[];
+  dinnerMeals: any[];
+  snackMeals: any[];
+  navigateToProfile: () => void;
+  navigateToAIFoodScan: () => void;
+  navigateToBarcodeScanner: () => void;
+  navigateToCreateFood: () => void;
+  navigateToRecipes: () => void;
+}
+
+const DashboardContent: React.FC<DashboardContentProps> = ({
+  selectedDate,
+  setSelectedDate,
+  userProfile,
+  total,
+  goals,
+  remaining,
+  mealCalories,
+  breakfastMeals,
+  lunchMeals,
+  dinnerMeals,
+  snackMeals,
+  navigateToProfile,
+  navigateToAIFoodScan,
+  navigateToBarcodeScanner,
+  navigateToCreateFood,
+  navigateToRecipes,
+}) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>

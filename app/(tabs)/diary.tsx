@@ -7,10 +7,11 @@ import { MealSection } from '@/components/MealSection';
 import { DailySummary } from '@/components/DailySummary';
 import { WaterTracker } from '@/components/WaterTracker';
 import { ActivityTracker } from '@/components/ActivityTracker';
+import { OfflineStatus } from '@/components/OfflineStatus';
 import { useNutrition, useMealsByType } from '@/hooks/useNutritionStore';
 
 export default function DiaryScreen() {
-  const { selectedDate, setSelectedDate } = useNutrition();
+  const { selectedDate, setSelectedDate, isOfflineMode, forceSyncNow, clearCache } = useNutrition();
   
   const breakfastEntries = useMealsByType('breakfast');
   const lunchEntries = useMealsByType('lunch');
@@ -39,6 +40,12 @@ export default function DiaryScreen() {
         <DateSelector 
           date={selectedDate} 
           onDateChange={setSelectedDate} 
+        />
+        
+        <OfflineStatus 
+          isOfflineMode={isOfflineMode}
+          onSyncPress={forceSyncNow}
+          onClearCachePress={clearCache}
         />
         
         <DailySummary date={selectedDate} />

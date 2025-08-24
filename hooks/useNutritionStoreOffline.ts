@@ -1,12 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import createContextHook from '@nkzw/create-context-hook';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DailyLog, FoodItem, MealEntry, UserProfile, Recipe, RecipeEntry } from '@/types/nutrition';
-import { trpc } from '@/lib/trpc';
+import { trpcClient } from '@/lib/trpc';
 import { cacheManager, CacheConfigs, CacheUtils } from '@/lib/cache-manager';
-import { offlineDataManager } from '@/lib/offline-data-manager';
 
 // Helper function to calculate total nutrition for a day
 const calculateTotalNutrition = (meals: MealEntry[], recipes: RecipeEntry[] = []) => {
@@ -54,50 +53,81 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [favoriteFoods, setFavoriteFoods] = useState<string[]>([]);
   const [favoriteRecipes, setFavoriteRecipes] = useState<string[]>([]);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
-  // Fetch user profile with caching and error handling
-  const profileQuery = trpc.profile.get.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+  // Monitor network status
+  useEffect(() => {
+    const checkNetworkStatus = () => {
+      setIsOfflineMode(!cacheManager.isNetworkAvailable());
+    };
+    
+    checkNetworkStatus();
+    const interval = setInterval(checkNetworkStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Enhanced profile query with offline support
+  const profileQuery = useQuery({
+    queryKey: ['profile', 'get'],
+    queryFn: async () => {
+      const userId = 'current-user'; // Get from auth context
+      const cacheKey = CacheUtils.generateUserKey(userId, 'profile');
+      
+      return await cacheManager.getWithFallback(
+        cacheKey,
+        async () => {
+          const result = await trpcClient.profile.get.query();
+          return result;
+        },
+        CacheConfigs.USER_PROFILE
+      );
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     retry: (failureCount, error) => {
-      // Don't retry on auth errors or network errors
       if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
         return false;
       }
       return failureCount < 2;
     },
-    // Provide fallback data when network fails
-    placeholderData: () => {
-      // Return a basic profile structure to prevent null errors
-      return {
-        id: 'offline-user',
-        name: 'User',
-        email: '',
-        weight: 70,
-        height: 170,
-        age: 30,
-        gender: 'other' as const,
-        activity_level: 'moderate' as const,
-        goal: 'maintain' as const,
-        calories_goal: 2000,
-        protein_goal: 150,
-        carbs_goal: 250,
-        fat_goal: 67,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-    },
-    // Enable offline-first behavior
+    placeholderData: () => ({
+      id: 'offline-user',
+      name: 'User',
+      email: '',
+      weight: 70,
+      height: 170,
+      age: 30,
+      gender: 'other' as const,
+      activity_level: 'moderate' as const,
+      goal: 'maintain' as const,
+      calories_goal: 2000,
+      protein_goal: 150,
+      carbs_goal: 250,
+      fat_goal: 67,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
     networkMode: 'offlineFirst',
   });
   
-  // Fetch food entries for selected date with optimized caching
-  const foodEntriesQuery = trpc.food.entries.useQuery({
-    date: selectedDate,
-  }, {
-    staleTime: 30 * 1000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes
+  // Enhanced food entries query with offline support
+  const foodEntriesQuery = useQuery({
+    queryKey: ['food', 'entries', selectedDate],
+    queryFn: async () => {
+      const cacheKey = CacheUtils.generateDateKey(selectedDate, 'food_entries');
+      
+      return await cacheManager.getWithFallback(
+        cacheKey,
+        async () => {
+          const result = await trpcClient.food.entries.query({ date: selectedDate });
+          return result;
+        },
+        CacheConfigs.FOOD_ENTRIES
+      );
+    },
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData || [],
     retry: (failureCount, error) => {
       if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
@@ -105,12 +135,27 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       }
       return failureCount < 2;
     },
+    networkMode: 'offlineFirst',
   });
   
-  // Fetch custom foods with long cache time
-  const customFoodsQuery = trpc.customFoods.list.useQuery({}, {
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
+  // Enhanced custom foods query with offline support
+  const customFoodsQuery = useQuery({
+    queryKey: ['customFoods', 'list'],
+    queryFn: async () => {
+      const userId = 'current-user';
+      const cacheKey = CacheUtils.generateUserKey(userId, 'custom_foods');
+      
+      return await cacheManager.getWithFallback(
+        cacheKey,
+        async () => {
+          const result = await trpcClient.customFoods.list.query({});
+          return result;
+        },
+        CacheConfigs.FOOD_ITEMS
+      );
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
     placeholderData: [],
     retry: (failureCount, error) => {
       if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
@@ -118,12 +163,27 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       }
       return failureCount < 2;
     },
+    networkMode: 'offlineFirst',
   });
   
-  // Fetch recipes with long cache time
-  const recipesQuery = trpc.recipes.list.useQuery({}, {
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
+  // Enhanced recipes query with offline support
+  const recipesQuery = useQuery({
+    queryKey: ['recipes', 'list'],
+    queryFn: async () => {
+      const userId = 'current-user';
+      const cacheKey = CacheUtils.generateUserKey(userId, 'recipes');
+      
+      return await cacheManager.getWithFallback(
+        cacheKey,
+        async () => {
+          const result = await trpcClient.recipes.list.query({});
+          return result;
+        },
+        CacheConfigs.RECIPES
+      );
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
     placeholderData: [],
     retry: (failureCount, error) => {
       if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
@@ -131,56 +191,175 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       }
       return failureCount < 2;
     },
+    networkMode: 'offlineFirst',
   });
   
-  // Optimized mutations with selective invalidation
-  const logFoodMutation = trpc.food.log.useMutation({
+  // Enhanced mutations with offline support
+  const logFoodMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (cacheManager.isNetworkAvailable()) {
+        return await trpcClient.food.log.mutate(data);
+      } else {
+        // Add to sync queue for offline processing
+        await cacheManager.addToSyncQueue({
+          type: 'create',
+          table: 'food_entries',
+          data,
+        });
+        
+        // Create optimistic entry for immediate UI update
+        const optimisticEntry = {
+          id: `offline_${Date.now()}`,
+          ...data,
+          logged_at: new Date().toISOString(),
+        };
+        
+        return optimisticEntry;
+      }
+    },
     onSuccess: (newEntry) => {
-      // Optimistic update instead of full invalidation
+      // Update cache immediately
+      const cacheKey = CacheUtils.generateDateKey(selectedDate, 'food_entries');
       queryClient.setQueryData(
-        [['food', 'entries'], { input: { date: selectedDate }, type: 'query' }],
+        ['food', 'entries', selectedDate],
         (oldData: any) => oldData ? [...oldData, newEntry] : [newEntry]
       );
+      
+      // Update cache storage
+      cacheManager.set(cacheKey, queryClient.getQueryData(['food', 'entries', selectedDate]), CacheConfigs.FOOD_ENTRIES);
+    },
+    onError: (error) => {
+      console.error('Failed to log food:', error);
     },
   });
   
-  const deleteFoodMutation = trpc.food.delete.useMutation({
+  const deleteFoodMutation = useMutation({
+    mutationFn: async (data: { id: string }) => {
+      if (cacheManager.isNetworkAvailable()) {
+        return await trpcClient.food.delete.mutate(data);
+      } else {
+        // Add to sync queue for offline processing
+        await cacheManager.addToSyncQueue({
+          type: 'delete',
+          table: 'food_entries',
+          data,
+        });
+        
+        return data;
+      }
+    },
     onSuccess: (_, variables) => {
-      // Optimistic update
+      // Update cache immediately
+      const cacheKey = CacheUtils.generateDateKey(selectedDate, 'food_entries');
       queryClient.setQueryData(
-        [['food', 'entries'], { input: { date: selectedDate }, type: 'query' }],
+        ['food', 'entries', selectedDate],
         (oldData: any) => oldData ? oldData.filter((entry: any) => entry.id !== variables.id) : []
       );
+      
+      // Update cache storage
+      cacheManager.set(cacheKey, queryClient.getQueryData(['food', 'entries', selectedDate]), CacheConfigs.FOOD_ENTRIES);
     },
   });
   
-  const updateProfileMutation = trpc.profile.update.useMutation({
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (cacheManager.isNetworkAvailable()) {
+        return await trpcClient.profile.update.mutate(data);
+      } else {
+        // Add to sync queue for offline processing
+        await cacheManager.addToSyncQueue({
+          type: 'update',
+          table: 'profiles',
+          data,
+        });
+        
+        // Return optimistic update
+        const currentProfile = queryClient.getQueryData(['profile', 'get']) as any;
+        return { ...currentProfile, ...data };
+      }
+    },
     onSuccess: (updatedProfile) => {
-      // Direct cache update
-      queryClient.setQueryData(
-        [['profile', 'get'], { type: 'query' }],
-        updatedProfile
-      );
+      // Update cache immediately
+      const userId = 'current-user';
+      const cacheKey = CacheUtils.generateUserKey(userId, 'profile');
+      queryClient.setQueryData(['profile', 'get'], updatedProfile);
+      
+      // Update cache storage
+      cacheManager.set(cacheKey, updatedProfile, CacheConfigs.USER_PROFILE);
     },
   });
   
-  const createCustomFoodMutation = trpc.customFoods.create.useMutation({
+  const createCustomFoodMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (cacheManager.isNetworkAvailable()) {
+        return await trpcClient.customFoods.create.mutate(data);
+      } else {
+        // Add to sync queue for offline processing
+        await cacheManager.addToSyncQueue({
+          type: 'create',
+          table: 'custom_foods',
+          data,
+        });
+        
+        // Create optimistic entry
+        const optimisticFood = {
+          id: `offline_${Date.now()}`,
+          ...data,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        return optimisticFood;
+      }
+    },
     onSuccess: (newFood) => {
-      // Optimistic update
+      // Update cache immediately
+      const userId = 'current-user';
+      const cacheKey = CacheUtils.generateUserKey(userId, 'custom_foods');
       queryClient.setQueryData(
-        [['customFoods', 'list'], { input: {}, type: 'query' }],
+        ['customFoods', 'list'],
         (oldData: any) => oldData ? [...oldData, newFood] : [newFood]
       );
+      
+      // Update cache storage
+      cacheManager.set(cacheKey, queryClient.getQueryData(['customFoods', 'list']), CacheConfigs.FOOD_ITEMS);
     },
   });
   
-  const createRecipeMutation = trpc.recipes.create.useMutation({
+  const createRecipeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (cacheManager.isNetworkAvailable()) {
+        return await trpcClient.recipes.create.mutate(data);
+      } else {
+        // Add to sync queue for offline processing
+        await cacheManager.addToSyncQueue({
+          type: 'create',
+          table: 'recipes',
+          data,
+        });
+        
+        // Create optimistic entry
+        const optimisticRecipe = {
+          id: `offline_${Date.now()}`,
+          ...data,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        return optimisticRecipe;
+      }
+    },
     onSuccess: (newRecipe) => {
-      // Optimistic update
+      // Update cache immediately
+      const userId = 'current-user';
+      const cacheKey = CacheUtils.generateUserKey(userId, 'recipes');
       queryClient.setQueryData(
-        [['recipes', 'list'], { input: {}, type: 'query' }],
+        ['recipes', 'list'],
         (oldData: any) => oldData ? [...oldData, newRecipe] : [newRecipe]
       );
+      
+      // Update cache storage
+      cacheManager.set(cacheKey, queryClient.getQueryData(['recipes', 'list']), CacheConfigs.RECIPES);
     },
   });
 
@@ -224,7 +403,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
         sugar: entry.sugar ? Number(entry.sugar) : undefined,
         sodium: entry.sodium ? Number(entry.sodium) : undefined,
       },
-      servings: 1, // Assuming 1 serving per entry for now
+      servings: 1,
       mealType: entry.meal_type as 'breakfast' | 'lunch' | 'dinner' | 'snack',
       date: new Date(entry.logged_at).toISOString().split('T')[0],
     }));
@@ -308,9 +487,6 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     saveFavorites();
   }, [favoriteFoods, favoriteRecipes]);
 
-  // Optimized date change handling - no need to invalidate, React Query handles this automatically
-  // The query key includes the date, so changing the date will fetch new data
-
   // Get meals for the selected date
   const getMealsForDate = (date: string) => {
     return mealEntries.filter((entry) => entry.date === date);
@@ -326,7 +502,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     };
   };
 
-  // Add a meal entry
+  // Add a meal entry with offline support
   const addMealEntry = async (entry: Omit<MealEntry, 'id'>) => {
     try {
       await logFoodMutation.mutateAsync({
@@ -350,7 +526,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     }
   };
 
-  // Remove a meal entry
+  // Remove a meal entry with offline support
   const removeMealEntry = async (id: string) => {
     try {
       await deleteFoodMutation.mutateAsync({ id });
@@ -360,14 +536,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     }
   };
 
-  // Update a meal entry (for now, we'll remove and re-add)
-  const updateMealEntry = async (id: string, updates: Partial<Omit<MealEntry, 'id'>>) => {
-    // For now, we'll implement this as remove and re-add
-    // In a real app, you'd want a proper update endpoint
-    console.log('Update meal entry not fully implemented yet:', id, updates);
-  };
-
-  // Update user profile
+  // Update user profile with offline support
   const updateUserProfile = async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
     
@@ -395,11 +564,10 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     }
   };
 
-  // Optimized search with debouncing
+  // Enhanced search with caching
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -407,21 +575,32 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
   
-  const foodSearchQuery = trpc.food.search.useQuery(
-    { query: debouncedSearchQuery },
-    { 
-      enabled: debouncedSearchQuery.length > 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 30 * 60 * 1000, // 30 minutes
-      placeholderData: [],
-      retry: (failureCount, error) => {
-        if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
-          return false;
-        }
-        return failureCount < 2;
-      },
-    }
-  );
+  const foodSearchQuery = useQuery({
+    queryKey: ['food', 'search', debouncedSearchQuery],
+    queryFn: async () => {
+      const cacheKey = CacheUtils.generateSearchKey(debouncedSearchQuery);
+      
+      return await cacheManager.getWithFallback(
+        cacheKey,
+        async () => {
+          const result = await trpcClient.food.search.query({ query: debouncedSearchQuery });
+          return result;
+        },
+        CacheConfigs.SEARCH_RESULTS
+      );
+    },
+    enabled: debouncedSearchQuery.length > 2,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: [],
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('AUTH_ERROR') || error?.message?.includes('NETWORK_ERROR')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    networkMode: 'offlineFirst',
+  });
 
   // Memoized search function
   const searchFoodItems = useCallback((query: string) => {
@@ -461,7 +640,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     return [...customResults, ...basicResults];
   }, [customFoods, foodSearchQuery.data, searchQuery]);
 
-  // Add a custom food item
+  // Add a custom food item with offline support
   const addFoodItem = async (item: Omit<FoodItem, 'id'>) => {
     try {
       const result = await createCustomFoodMutation.mutateAsync({
@@ -498,8 +677,17 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     }
   };
   
-  // Memoized frequent foods calculation
+  // Memoized frequent foods calculation with caching
   const getFrequentFoods = useMemo(() => {
+    const userId = 'current-user';
+    const cacheKey = CacheUtils.generateUserKey(userId, 'frequent_foods');
+    
+    // Try to get from cache first
+    cacheManager.get(cacheKey, CacheConfigs.FREQUENT_FOODS.version)
+      .then(cachedData => {
+        if (cachedData) return cachedData;
+      });
+    
     const foodCounts = new Map<string, { count: number; food: FoodItem; lastUsed: string }>();
     
     // Count food usage in the last 30 days
@@ -526,7 +714,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     });
     
     // Sort by usage count and recency
-    return Array.from(foodCounts.values())
+    const result = Array.from(foodCounts.values())
       .sort((a, b) => {
         if (a.count !== b.count) {
           return b.count - a.count; // Higher count first
@@ -535,6 +723,11 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
       })
       .map(item => item.food)
       .slice(0, 10); // Return top 10
+    
+    // Cache the result
+    cacheManager.set(cacheKey, result, CacheConfigs.FREQUENT_FOODS);
+    
+    return result;
   }, [mealEntries]);
   
   // Get favorite foods
@@ -558,7 +751,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     return favoriteFoods.includes(foodId);
   };
 
-  // Recipe management functions
+  // Recipe management functions with offline support
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const totalNutrition = recipe.nutritionPerServing;
@@ -603,12 +796,10 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   };
 
   const updateRecipe = async (id: string, updates: Partial<Omit<Recipe, 'id' | 'createdAt'>>) => {
-    // TODO: Implement recipe update endpoint
     console.log('Recipe update not implemented yet:', id, updates);
   };
 
   const deleteRecipe = async (id: string) => {
-    // TODO: Implement recipe delete endpoint
     console.log('Recipe delete not implemented yet:', id);
     setFavoriteRecipes(prev => prev.filter(recipeId => recipeId !== id));
   };
@@ -626,12 +817,10 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   };
 
   const addRecipeEntry = async (entry: Omit<RecipeEntry, 'id'>) => {
-    // TODO: Implement recipe entry logging
     console.log('Recipe entry logging not implemented yet:', entry);
   };
 
   const removeRecipeEntry = async (id: string) => {
-    // TODO: Implement recipe entry removal
     console.log('Recipe entry removal not implemented yet:', id);
   };
 
@@ -694,10 +883,38 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   };
 
   const importRecipeFromUrl = async (url: string) => {
-    // This would integrate with a recipe parsing API
-    // For now, return a placeholder
     console.log('Recipe import from URL not implemented yet:', url);
     throw new Error('Recipe import from URL is not implemented yet');
+  };
+
+  // Cache management functions
+  const clearCache = async () => {
+    await cacheManager.clear();
+    queryClient.clear();
+  };
+
+  const forceSyncNow = async () => {
+    try {
+      await cacheManager.forceSyncNow();
+      // Refetch all queries after sync
+      await queryClient.refetchQueries();
+    } catch (error) {
+      console.error('Failed to force sync:', error);
+      throw error;
+    }
+  };
+
+  const getCacheInfo = async () => {
+    const size = await cacheManager.getCacheSize();
+    const syncQueueLength = cacheManager.getSyncQueueLength();
+    const isOnline = cacheManager.isNetworkAvailable();
+    
+    return {
+      cacheSize: size,
+      syncQueueLength,
+      isOnline,
+      isOfflineMode,
+    };
   };
 
   return {
@@ -706,8 +923,10 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     mealEntries,
     addMealEntry,
     removeMealEntry,
-    updateMealEntry,
-    foodItems: [], // Empty for now, could add a food database later
+    updateMealEntry: async (id: string, updates: Partial<Omit<MealEntry, 'id'>>) => {
+      console.log('Update meal entry not fully implemented yet:', id, updates);
+    },
+    foodItems: [],
     customFoods,
     searchFoodItems,
     addFoodItem,
@@ -726,7 +945,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     updateRecipe,
     deleteRecipe,
     searchRecipes,
-    recipeEntries: [], // Empty for now
+    recipeEntries: [],
     addRecipeEntry,
     removeRecipeEntry,
     favoriteRecipes,
@@ -738,32 +957,10 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     calculateRecipeNutrition,
     importRecipeFromUrl,
     // Offline/cache management
-    isOfflineMode: !cacheManager.isNetworkAvailable(),
-    clearCache: async () => {
-      await offlineDataManager.clearOfflineData();
-      queryClient.clear();
-    },
-    forceSyncNow: async () => {
-      await cacheManager.forceSyncNow();
-      await queryClient.refetchQueries();
-    },
-    getCacheInfo: async () => {
-      const size = await cacheManager.getCacheSize();
-      const syncQueueLength = cacheManager.getSyncQueueLength();
-      const isOnline = cacheManager.isNetworkAvailable();
-      const offlineSize = await offlineDataManager.getOfflineDataSize();
-      
-      return {
-        cacheSize: size,
-        syncQueueLength,
-        isOnline,
-        offlineDataSize: offlineSize.totalSize,
-        offlineDataBreakdown: offlineSize.breakdown,
-      };
-    },
-    optimizeOfflineData: async () => {
-      await offlineDataManager.optimizeOfflineData();
-    },
+    isOfflineMode,
+    clearCache,
+    forceSyncNow,
+    getCacheInfo,
   };
 });
 

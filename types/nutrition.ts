@@ -5,6 +5,12 @@ export interface NutritionGoals {
   fat: number;
 }
 
+export interface WellnessGoals {
+  waterIntake: number; // ml per day
+  activityMinutes: number; // minutes per day
+  steps?: number; // steps per day
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -15,6 +21,7 @@ export interface UserProfile {
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very active';
   goal: 'lose' | 'maintain' | 'gain';
   nutritionGoals: NutritionGoals;
+  wellnessGoals?: WellnessGoals;
   dietaryPreferences?: DietaryPreferences;
   notifications?: NotificationSettings;
   privacy?: PrivacySettings;

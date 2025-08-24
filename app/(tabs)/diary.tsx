@@ -4,7 +4,9 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { colors } from '@/constants/colors';
 import { DateSelector } from '@/components/DateSelector';
 import { MealSection } from '@/components/MealSection';
-import { NutritionSummary } from '@/components/NutritionSummary';
+import { DailySummary } from '@/components/DailySummary';
+import { WaterTracker } from '@/components/WaterTracker';
+import { ActivityTracker } from '@/components/ActivityTracker';
 import { useNutrition, useMealsByType } from '@/hooks/useNutritionStore';
 
 export default function DiaryScreen() {
@@ -39,7 +41,7 @@ export default function DiaryScreen() {
           onDateChange={setSelectedDate} 
         />
         
-        <NutritionSummary />
+        <DailySummary date={selectedDate} />
         
         <MealSection
           title="Breakfast"
@@ -68,6 +70,10 @@ export default function DiaryScreen() {
           entries={snackEntries}
           totalCalories={snackCalories}
         />
+        
+        <WaterTracker date={selectedDate} />
+        
+        <ActivityTracker date={selectedDate} />
       </ScrollView>
     </View>
   );

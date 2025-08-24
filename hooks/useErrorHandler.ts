@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import monitoring from '@/lib/monitoring';
 
 export interface ErrorState {
   hasError: boolean;
@@ -86,8 +87,12 @@ export const useErrorHandler = (options: ErrorHandlerOptions = {}) => {
 
     console.error('Error Handler:', errorDetails);
     
-    // In production, send to error tracking service
-    // Example: Sentry.captureException(error, { extra: errorDetails });
+    // Send to monitoring service
+    monitoring.captureError(error, {
+      context,
+      platform: Platform.OS,
+      userAgent: Platform.OS === 'web' ? navigator.userAgent : undefined,
+    });
   }, [logError]);
 
   const handleError = useCallback(async (error: Error, context?: string) => {

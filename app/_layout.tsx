@@ -12,6 +12,7 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/ToastProvider";
 import { NetworkStatus } from "@/components/NetworkStatus";
+import monitoring from "@/lib/monitoring";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -57,6 +58,27 @@ const queryClient = new QueryClient({
 function RootLayoutNav() {
   const { user, loading: authLoading, initialized } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
+
+  // Initialize monitoring when user changes
+  useEffect(() => {
+    if (initialized) {
+      monitoring.initialize({
+        enableAnalytics: true,
+        enableErrorLogging: true,
+        userId: user?.id || null,
+        userProperties: profile ? {
+          age: profile.age,
+          gender: profile.gender,
+          activity_level: profile.activity_level,
+          dietary_preferences: profile.dietary_preferences,
+        } : undefined,
+      });
+
+      if (user) {
+        monitoring.logLogin('app_start');
+      }
+    }
+  }, [initialized, user, profile]);
 
   // Don't render anything until auth is initialized
   if (!initialized || authLoading) {
@@ -174,6 +196,9 @@ export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
     
+    // Initialize monitoring on app start
+    monitoring.logAppStart();
+    
     // Monitor network status
     const unsubscribe = NetInfo.addEventListener(state => {
       const online = state.isConnected === true && state.isInternetReachable !== false;
@@ -181,9 +206,11 @@ export default function RootLayout() {
       
       if (online) {
         console.log('Network connected, refetching queries');
+        monitoring.addBreadcrumb('Network reconnected', 'network');
         queryClient.refetchQueries({ type: 'active' });
       } else {
         console.log('Network disconnected');
+        monitoring.addBreadcrumb('Network disconnected', 'network');
       }
     });
 
@@ -201,7 +228,10 @@ export default function RootLayout() {
     <ErrorBoundary
       onError={(error, errorInfo) => {
         console.error('Root Error Boundary:', error, errorInfo);
-        // In production, send to error tracking service
+        monitoring.captureError(error, {
+          type: 'error_boundary',
+          componentStack: errorInfo.componentStack,
+        });
       }}
     >
       <trpc.Provider client={trpcClient} queryClient={queryClient}>

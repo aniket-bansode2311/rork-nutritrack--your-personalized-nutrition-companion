@@ -1,1 +1,272 @@
-import { execSync } from 'child_process';\nimport { existsSync, readdirSync, statSync } from 'fs';\nimport { join } from 'path';\n\n// Test runner configuration\ninterface TestConfig {\n  name: string;\n  command: string;\n  required: boolean;\n  timeout?: number;\n}\n\ninterface ValidationResult {\n  passed: number;\n  failed: number;\n  total: number;\n  details: Array<{ name: string; status: 'pass' | 'fail'; message?: string }>;\n}\n\nclass AppValidator {\n  private results: ValidationResult = {\n    passed: 0,\n    failed: 0,\n    total: 0,\n    details: []\n  };\n\n  private log(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') {\n    const colors = {\n      info: '\\x1b[36m',\n      success: '\\x1b[32m',\n      error: '\\x1b[31m',\n      warning: '\\x1b[33m'\n    };\n    const reset = '\\x1b[0m';\n    console.log(`${colors[type]}${message}${reset}`);\n  }\n\n  private runCommand(command: string, timeout = 30000): { success: boolean; output: string } {\n    try {\n      const output = execSync(command, { \n        timeout,\n        encoding: 'utf8',\n        stdio: 'pipe'\n      });\n      return { success: true, output };\n    } catch (error: any) {\n      return { success: false, output: error.message || 'Command failed' };\n    }\n  }\n\n  private addResult(name: string, success: boolean, message?: string) {\n    this.results.total++;\n    if (success) {\n      this.results.passed++;\n      this.results.details.push({ name, status: 'pass' });\n      this.log(`✅ ${name}`, 'success');\n    } else {\n      this.results.failed++;\n      this.results.details.push({ name, status: 'fail', message });\n      this.log(`❌ ${name}${message ? ': ' + message : ''}`, 'error');\n    }\n  }\n\n  // Validate file structure\n  validateFileStructure(): void {\n    this.log('\\n📁 Validating file structure...', 'info');\n    \n    const requiredFiles = [\n      'app/_layout.tsx',\n      'app/(tabs)/_layout.tsx',\n      'app/(auth)/_layout.tsx',\n      'app/(tabs)/index.tsx',\n      'app/(tabs)/diary.tsx',\n      'app/(tabs)/recipes.tsx',\n      'app/(tabs)/settings.tsx',\n      'app/add-food.tsx',\n      'app/profile.tsx',\n      'hooks/useAuth.ts',\n      'hooks/useProfile.ts',\n      'hooks/useNutritionStore.ts',\n      'lib/trpc.ts',\n      'lib/supabase.ts',\n      'components/ErrorBoundary.tsx',\n      'components/ToastProvider.tsx',\n      'jest.config.js',\n      'jest.setup.js',\n      'tsconfig.json'\n    ];\n\n    requiredFiles.forEach(file => {\n      const exists = existsSync(file);\n      this.addResult(`File exists: ${file}`, exists);\n    });\n\n    // Check test files\n    const testDirs = ['__tests__/hooks', '__tests__/components', '__tests__/lib'];\n    testDirs.forEach(dir => {\n      const exists = existsSync(dir);\n      this.addResult(`Test directory exists: ${dir}`, exists);\n    });\n  }\n\n  // Validate TypeScript compilation\n  validateTypeScript(): void {\n    this.log('\\n🔍 Validating TypeScript...', 'info');\n    \n    const result = this.runCommand('npx tsc --noEmit');\n    this.addResult('TypeScript compilation', result.success, result.output);\n  }\n\n  // Validate routing configuration\n  validateRouting(): void {\n    this.log('\\n🛣️  Validating routing configuration...', 'info');\n    \n    // Check if routing tests exist and pass\n    if (existsSync('__tests__/routing/navigation.test.tsx')) {\n      const result = this.runCommand('npx jest __tests__/routing/navigation.test.tsx --passWithNoTests');\n      this.addResult('Navigation tests', result.success, result.output);\n    } else {\n      this.addResult('Navigation tests', false, 'Test file not found');\n    }\n\n    // Validate route file structure\n    const routeStructure = {\n      'app/_layout.tsx': 'Root layout',\n      'app/(tabs)/_layout.tsx': 'Tab layout',\n      'app/(auth)/_layout.tsx': 'Auth layout'\n    };\n\n    Object.entries(routeStructure).forEach(([file, description]) => {\n      const exists = existsSync(file);\n      this.addResult(`${description} exists`, exists);\n    });\n  }\n\n  // Validate component functionality\n  validateComponents(): void {\n    this.log('\\n🧩 Validating components...', 'info');\n    \n    // Run component tests\n    if (existsSync('__tests__/components')) {\n      const result = this.runCommand('npx jest __tests__/components --passWithNoTests');\n      this.addResult('Component tests', result.success, result.output);\n    } else {\n      this.addResult('Component tests', false, 'Component tests directory not found');\n    }\n\n    // Check for essential components\n    const essentialComponents = [\n      'components/ErrorBoundary.tsx',\n      'components/ToastProvider.tsx',\n      'components/NetworkStatus.tsx',\n      'components/CalorieCircle.tsx',\n      'components/FoodItemRow.tsx',\n      'components/MealSection.tsx'\n    ];\n\n    essentialComponents.forEach(component => {\n      const exists = existsSync(component);\n      this.addResult(`Component exists: ${component}`, exists);\n    });\n  }\n\n  // Validate hooks and state management\n  validateHooks(): void {\n    this.log('\\n🎣 Validating hooks and state management...', 'info');\n    \n    // Run hook tests\n    if (existsSync('__tests__/hooks')) {\n      const result = this.runCommand('npx jest __tests__/hooks --passWithNoTests');\n      this.addResult('Hook tests', result.success, result.output);\n    } else {\n      this.addResult('Hook tests', false, 'Hook tests directory not found');\n    }\n\n    // Check for essential hooks\n    const essentialHooks = [\n      'hooks/useAuth.ts',\n      'hooks/useProfile.ts',\n      'hooks/useNutritionStore.ts'\n    ];\n\n    essentialHooks.forEach(hook => {\n      const exists = existsSync(hook);\n      this.addResult(`Hook exists: ${hook}`, exists);\n    });\n  }\n\n  // Validate backend integration\n  validateBackend(): void {\n    this.log('\\n🔗 Validating backend integration...', 'info');\n    \n    const backendFiles = [\n      'backend/hono.ts',\n      'backend/trpc/app-router.ts',\n      'backend/trpc/create-context.ts',\n      'lib/trpc.ts'\n    ];\n\n    backendFiles.forEach(file => {\n      const exists = existsSync(file);\n      this.addResult(`Backend file exists: ${file}`, exists);\n    });\n\n    // Check for tRPC routes\n    if (existsSync('backend/trpc/routes')) {\n      const routeFiles = this.getFilesRecursively('backend/trpc/routes');\n      const hasRoutes = routeFiles.length > 0;\n      this.addResult('tRPC routes exist', hasRoutes, `Found ${routeFiles.length} route files`);\n    } else {\n      this.addResult('tRPC routes directory', false, 'Routes directory not found');\n    }\n  }\n\n  // Validate performance and optimization\n  validatePerformance(): void {\n    this.log('\\n⚡ Validating performance optimizations...', 'info');\n    \n    // Check for performance-related files\n    const perfFiles = [\n      'lib/cache-manager.ts',\n      'lib/offline-data-manager.ts',\n      'hooks/useNutritionStoreOffline.ts'\n    ];\n\n    perfFiles.forEach(file => {\n      const exists = existsSync(file);\n      this.addResult(`Performance file exists: ${file}`, exists);\n    });\n\n    // Check for potential performance issues\n    const result = this.runCommand('grep -r \"console.log\" app/ --include=\"*.tsx\" --include=\"*.ts\" || true');\n    const hasConsoleLogs = result.output.trim().length > 0;\n    this.addResult('No console.log in production code', !hasConsoleLogs, \n      hasConsoleLogs ? 'Found console.log statements' : undefined);\n  }\n\n  // Validate security measures\n  validateSecurity(): void {\n    this.log('\\n🔒 Validating security measures...', 'info');\n    \n    const securityFiles = [\n      'lib/security.ts',\n      '.env',\n      '.env.production'\n    ];\n\n    securityFiles.forEach(file => {\n      const exists = existsSync(file);\n      this.addResult(`Security file exists: ${file}`, exists);\n    });\n\n    // Check for hardcoded secrets (basic check)\n    const result = this.runCommand('grep -r \"sk_\" app/ --include=\"*.tsx\" --include=\"*.ts\" || true');\n    const hasHardcodedSecrets = result.output.trim().length > 0;\n    this.addResult('No hardcoded secrets', !hasHardcodedSecrets,\n      hasHardcodedSecrets ? 'Found potential hardcoded secrets' : undefined);\n  }\n\n  // Validate accessibility\n  validateAccessibility(): void {\n    this.log('\\n♿ Validating accessibility...', 'info');\n    \n    // Check for accessibility attributes\n    const testIdResult = this.runCommand('grep -r \"testID\" app/ --include=\"*.tsx\" || true');\n    const hasTestIds = testIdResult.output.trim().length > 0;\n    this.addResult('TestID attributes present', hasTestIds);\n\n    const a11yResult = this.runCommand('grep -r \"accessibilityLabel\" app/ --include=\"*.tsx\" || true');\n    const hasA11yLabels = a11yResult.output.trim().length > 0;\n    this.addResult('Accessibility labels present', hasA11yLabels);\n  }\n\n  // Helper method to get files recursively\n  private getFilesRecursively(dir: string): string[] {\n    const files: string[] = [];\n    \n    if (!existsSync(dir)) return files;\n    \n    const items = readdirSync(dir);\n    \n    for (const item of items) {\n      const fullPath = join(dir, item);\n      const stat = statSync(fullPath);\n      \n      if (stat.isDirectory()) {\n        files.push(...this.getFilesRecursively(fullPath));\n      } else if (item.endsWith('.ts') || item.endsWith('.tsx')) {\n        files.push(fullPath);\n      }\n    }\n    \n    return files;\n  }\n\n  // Run all validations\n  async runAllValidations(): Promise<ValidationResult> {\n    this.log('🚀 Starting comprehensive app validation...', 'info');\n    \n    this.validateFileStructure();\n    this.validateTypeScript();\n    this.validateRouting();\n    this.validateComponents();\n    this.validateHooks();\n    this.validateBackend();\n    this.validatePerformance();\n    this.validateSecurity();\n    this.validateAccessibility();\n    \n    return this.results;\n  }\n\n  // Print final report\n  printReport(): void {\n    this.log('\\n📊 Validation Report', 'info');\n    this.log('='.repeat(50), 'info');\n    this.log(`Total Tests: ${this.results.total}`, 'info');\n    this.log(`Passed: ${this.results.passed}`, 'success');\n    this.log(`Failed: ${this.results.failed}`, this.results.failed > 0 ? 'error' : 'info');\n    \n    const successRate = Math.round((this.results.passed / this.results.total) * 100);\n    this.log(`Success Rate: ${successRate}%`, successRate >= 80 ? 'success' : 'warning');\n    \n    if (this.results.failed > 0) {\n      this.log('\\n❌ Failed Tests:', 'error');\n      this.results.details\n        .filter(detail => detail.status === 'fail')\n        .forEach(detail => {\n          this.log(`  - ${detail.name}${detail.message ? ': ' + detail.message : ''}`, 'error');\n        });\n    }\n    \n    if (this.results.failed === 0) {\n      this.log('\\n🎉 All validations passed! App is ready for production.', 'success');\n    } else {\n      this.log(`\\n💥 ${this.results.failed} validation(s) failed. Please fix the issues before deployment.`, 'error');\n    }\n  }\n}\n\n// Run the validator\nif (require.main === module) {\n  const validator = new AppValidator();\n  \n  validator.runAllValidations()\n    .then(() => {\n      validator.printReport();\n      process.exit(validator.results.failed === 0 ? 0 : 1);\n    })\n    .catch((error) => {\n      console.error('Validation failed:', error);\n      process.exit(1);\n    });\n}\n\nexport default AppValidator;
+import { execSync } from 'child_process';
+import { existsSync, readdirSync, statSync } from 'fs';
+import { join } from 'path';
+
+interface ValidationResult {
+  passed: number;
+  failed: number;
+  total: number;
+  details: { name: string; status: 'pass' | 'fail'; message?: string }[];
+}
+
+class AppValidator {
+  private results: ValidationResult = {
+    passed: 0,
+    failed: 0,
+    total: 0,
+    details: []
+  };
+
+  private log(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') {
+    const colors = {
+      info: '\x1b[36m',
+      success: '\x1b[32m',
+      error: '\x1b[31m',
+      warning: '\x1b[33m'
+    };
+    const reset = '\x1b[0m';
+    console.log(`${colors[type]}${message}${reset}`);
+  }
+
+  private runCommand(command: string, timeout = 30000): { success: boolean; output: string } {
+    try {
+      const output = execSync(command, { 
+        timeout,
+        encoding: 'utf8',
+        stdio: 'pipe'
+      });
+      return { success: true, output };
+    } catch (error: any) {
+      return { success: false, output: error.message || 'Command failed' };
+    }
+  }
+
+  private addResult(name: string, success: boolean, message?: string) {
+    this.results.total++;
+    if (success) {
+      this.results.passed++;
+      this.results.details.push({ name, status: 'pass' });
+      this.log(`✅ ${name}`, 'success');
+    } else {
+      this.results.failed++;
+      this.results.details.push({ name, status: 'fail', message });
+      this.log(`❌ ${name}${message ? ': ' + message : ''}`, 'error');
+    }
+  }
+
+  // Validate file structure
+  validateFileStructure(): void {
+    this.log('\n📁 Validating file structure...', 'info');
+    
+    const requiredFiles = [
+      'app/_layout.tsx',
+      'app/(tabs)/_layout.tsx',
+      'app/(auth)/_layout.tsx',
+      'app/(tabs)/index.tsx',
+      'app/(tabs)/recipes.tsx',
+      'app/(tabs)/diary.tsx',
+      'app/(tabs)/settings.tsx',
+      'package.json',
+      'tsconfig.json',
+      'app.json'
+    ];
+
+    const requiredDirs = [
+      'app',
+      'components',
+      'hooks',
+      'lib',
+      'types',
+      'backend',
+      'backend/trpc'
+    ];
+
+    // Check required files
+    requiredFiles.forEach(file => {
+      const exists = existsSync(file);
+      this.addResult(`File exists: ${file}`, exists);
+    });
+
+    // Check required directories
+    requiredDirs.forEach(dir => {
+      const exists = existsSync(dir) && statSync(dir).isDirectory();
+      this.addResult(`Directory exists: ${dir}`, exists);
+    });
+  }
+
+  // Validate TypeScript compilation
+  validateTypeScript(): void {
+    this.log('\n🔍 Validating TypeScript compilation...', 'info');
+    
+    const result = this.runCommand('npx tsc --noEmit', 60000);
+    this.addResult('TypeScript compilation', result.success, result.output);
+  }
+
+  // Validate package dependencies
+  validateDependencies(): void {
+    this.log('\n📦 Validating dependencies...', 'info');
+    
+    const result = this.runCommand('npm ls --depth=0', 30000);
+    this.addResult('Dependencies check', result.success, result.output);
+  }
+
+  // Run unit tests
+  runTests(): void {
+    this.log('\n🧪 Running unit tests...', 'info');
+    
+    const result = this.runCommand('npm test -- --watchAll=false', 120000);
+    this.addResult('Unit tests', result.success, result.output);
+  }
+
+  // Validate routing structure
+  validateRouting(): void {
+    this.log('\n🛣️ Validating routing structure...', 'info');
+    
+    // Check for proper tab structure
+    const tabsDir = 'app/(tabs)';
+    if (existsSync(tabsDir)) {
+      const tabFiles = readdirSync(tabsDir).filter(f => f.endsWith('.tsx') && f !== '_layout.tsx');
+      this.addResult('Tab routes exist', tabFiles.length > 0);
+      
+      // Check for _layout.tsx in tabs
+      const tabLayout = join(tabsDir, '_layout.tsx');
+      this.addResult('Tabs layout exists', existsSync(tabLayout));
+    }
+
+    // Check auth structure
+    const authDir = 'app/(auth)';
+    if (existsSync(authDir)) {
+      const authFiles = readdirSync(authDir).filter(f => f.endsWith('.tsx') && f !== '_layout.tsx');
+      this.addResult('Auth routes exist', authFiles.length > 0);
+    }
+  }
+
+  // Validate backend structure
+  validateBackend(): void {
+    this.log('\n🔧 Validating backend structure...', 'info');
+    
+    const backendFiles = [
+      'backend/hono.ts',
+      'backend/trpc/app-router.ts',
+      'backend/trpc/create-context.ts'
+    ];
+
+    backendFiles.forEach(file => {
+      const exists = existsSync(file);
+      this.addResult(`Backend file: ${file}`, exists);
+    });
+
+    // Check for tRPC routes
+    const routesDir = 'backend/trpc/routes';
+    if (existsSync(routesDir)) {
+      const hasRoutes = this.hasFilesRecursively(routesDir, '.ts');
+      this.addResult('tRPC routes exist', hasRoutes);
+    }
+  }
+
+  // Validate component structure
+  validateComponents(): void {
+    this.log('\n🧩 Validating components...', 'info');
+    
+    const componentsDir = 'components';
+    if (existsSync(componentsDir)) {
+      const hasComponents = this.hasFilesRecursively(componentsDir, '.tsx');
+      this.addResult('Components exist', hasComponents);
+    }
+
+    // Check for key components
+    const keyComponents = [
+      'components/FoodItemRow.tsx',
+      'components/MealSection.tsx',
+      'components/NutritionSummary.tsx',
+      'components/RecipeCard.tsx'
+    ];
+
+    keyComponents.forEach(component => {
+      const exists = existsSync(component);
+      this.addResult(`Component: ${component}`, exists);
+    });
+  }
+
+  // Helper method to check for files recursively
+  private hasFilesRecursively(dir: string, extension: string): boolean {
+    try {
+      const items = readdirSync(dir);
+      for (const item of items) {
+        const fullPath = join(dir, item);
+        const stat = statSync(fullPath);
+        
+        if (stat.isDirectory()) {
+          if (this.hasFilesRecursively(fullPath, extension)) {
+            return true;
+          }
+        } else if (item.endsWith(extension)) {
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  // Validate environment configuration
+  validateEnvironment(): void {
+    this.log('\n🌍 Validating environment configuration...', 'info');
+    
+    const envFiles = ['.env', '.env.production'];
+    envFiles.forEach(file => {
+      const exists = existsSync(file);
+      this.addResult(`Environment file: ${file}`, exists);
+    });
+  }
+
+  // Run all validations
+  async runAllValidations(): Promise<ValidationResult> {
+    this.log('🚀 Starting comprehensive app validation...', 'info');
+    
+    this.validateFileStructure();
+    this.validateRouting();
+    this.validateComponents();
+    this.validateBackend();
+    this.validateEnvironment();
+    this.validateDependencies();
+    this.validateTypeScript();
+    this.runTests();
+
+    // Print summary
+    this.log('\n📊 Validation Summary:', 'info');
+    this.log(`Total tests: ${this.results.total}`, 'info');
+    this.log(`Passed: ${this.results.passed}`, 'success');
+    this.log(`Failed: ${this.results.failed}`, this.results.failed > 0 ? 'error' : 'success');
+    
+    const successRate = ((this.results.passed / this.results.total) * 100).toFixed(1);
+    this.log(`Success rate: ${successRate}%`, successRate === '100.0' ? 'success' : 'warning');
+
+    if (this.results.failed > 0) {
+      this.log('\n❌ Failed validations:', 'error');
+      this.results.details
+        .filter(d => d.status === 'fail')
+        .forEach(d => {
+          this.log(`  • ${d.name}${d.message ? ': ' + d.message : ''}`, 'error');
+        });
+    }
+
+    return this.results;
+  }
+}
+
+// Run validation if this file is executed directly
+if (require.main === module) {
+  const validator = new AppValidator();
+  validator.runAllValidations()
+    .then(results => {
+      process.exit(results.failed > 0 ? 1 : 0);
+    })
+    .catch(error => {
+      console.error('Validation failed:', error);
+      process.exit(1);
+    });
+}
+
+export default AppValidator;

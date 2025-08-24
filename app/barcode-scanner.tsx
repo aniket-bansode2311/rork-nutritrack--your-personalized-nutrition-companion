@@ -12,6 +12,7 @@ import { useRouter, Stack } from 'expo-router';
 import { X, Flashlight, FlashlightOff } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import type { BarcodeProduct } from '@/types/nutrition';
+import { FoodRecognitionService } from '@/lib/api/food-recognition';
 
 interface BarcodeData {
   type: string;
@@ -33,67 +34,27 @@ export default function BarcodeScanner() {
 
   const lookupBarcode = async (barcode: string): Promise<BarcodeProduct | null> => {
     try {
-      console.log('Looking up barcode:', barcode);
+      console.log('Looking up barcode with unified service:', barcode);
       
-      // Using Nutritionix API as an example
-      // In a real app, you'd use your preferred nutrition API
-      const response = await fetch('https://trackapi.nutritionix.com/v2/search/item', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-app-id': 'YOUR_APP_ID', // Replace with actual API credentials
-          'x-app-key': 'YOUR_APP_KEY',
-        },
-        body: JSON.stringify({
-          upc: barcode,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Product not found');
+      // Use unified food recognition service
+      const product = await FoodRecognitionService.searchByBarcode(barcode);
+      
+      if (product) {
+        console.log('Barcode lookup successful:', product);
+        return product;
       }
-
-      const data = await response.json();
-      const product = data.foods[0];
-
-      if (!product) {
-        throw new Error('Product not found');
-      }
-
-      return {
-        barcode,
-        name: product.food_name,
-        brand: product.brand_name,
-        servingSize: product.serving_weight_grams || 100,
-        servingUnit: 'g',
-        calories: Math.round(product.nf_calories || 0),
-        protein: Math.round(product.nf_protein || 0),
-        carbs: Math.round(product.nf_total_carbohydrate || 0),
-        fat: Math.round(product.nf_total_fat || 0),
-        fiber: Math.round(product.nf_dietary_fiber || 0),
-        sugar: Math.round(product.nf_sugars || 0),
-        sodium: Math.round(product.nf_sodium || 0),
-        imageUrl: product.photo?.thumb,
-        ingredients: product.nf_ingredient_statement?.split(', '),
-      };
+      
+      console.log('No product found for barcode:', barcode);
+      return null;
     } catch (error) {
       console.error('Barcode lookup error:', error);
-      // Fallback to mock data for demo purposes
-      return {
-        barcode,
-        name: 'Sample Product',
-        brand: 'Sample Brand',
-        servingSize: 100,
-        servingUnit: 'g',
-        calories: 250,
-        protein: 8,
-        carbs: 35,
-        fat: 12,
-        fiber: 3,
-        sugar: 15,
-        sodium: 400,
-        imageUrl: 'https://via.placeholder.com/150',
-      };
+      
+      // Use the unified service's error handling
+      const errorMessage = FoodRecognitionService.handleAPIError(error, 'Barcode lookup');
+      console.log('Error message:', errorMessage);
+      
+      // Return null to let the calling function handle the error display
+      return null;
     }
   };
 

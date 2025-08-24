@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/constants/colors';
 import { useNutrition } from '@/hooks/useNutritionStore';
 import { FoodItem, MealEntry } from '@/types/nutrition';
+import { FoodRecognitionService } from '@/lib/api/food-recognition';
 
 export default function AIFoodScanScreen() {
   const router = useRouter();
@@ -56,72 +57,19 @@ export default function AIFoodScanScreen() {
         const base64Image = base64Data.split(',')[1];
         
         try {
-          // Call AI API for food recognition
-          const aiResponse = await fetch('https://toolkit.rork.com/text/llm/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are a highly accurate nutrition expert AI specializing in food recognition and portion estimation. Analyze food images with precision and provide detailed nutritional information. If multiple food items are visible, focus on the main/largest item. Return a JSON object with: name (descriptive food name), estimatedWeight (in grams, be precise with portion size), calories, protein, carbs, fat, fiber, sugar, sodium. Consider cooking methods, ingredients, and realistic portion sizes. Be conservative with estimates rather than overestimating.'
-                },
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: 'Analyze this food image carefully. Identify the main food item and estimate its nutritional content based on the visible portion size. Consider the cooking method, ingredients, and realistic serving size. Provide accurate nutritional data in JSON format.'
-                    },
-                    {
-                      type: 'image',
-                      image: base64Image
-                    }
-                  ]
-                }
-              ]
-            }),
-          });
+          // Use unified food recognition service with automatic fallbacks
+          console.log('Starting food recognition with unified service...');
+          const newFoodItem = await FoodRecognitionService.analyzeFoodImage(base64Image);
+          console.log('Food recognition successful:', newFoodItem);
           
-          const aiResult = await aiResponse.json();
+          const addedFoodItem = await addFoodItem(newFoodItem);
           
-          // Parse AI response
-          let foodData;
-          try {
-            foodData = JSON.parse(aiResult.completion);
-          } catch {
-            // Fallback if AI doesn't return valid JSON
-            Alert.alert(
-              'Recognition Failed',
-              'Unable to identify the food item. Please try taking another photo or add the food manually.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
-          
-          // Create food item
-          const newFoodItem: Omit<FoodItem, 'id'> = {
-            name: foodData.name || 'AI Scanned Food',
-            brand: 'AI Detected',
-            servingSize: foodData.estimatedWeight || 100,
-            servingUnit: 'g',
-            calories: foodData.calories || 200,
-            protein: foodData.protein || 10,
-            carbs: foodData.carbs || 20,
-            fat: foodData.fat || 8,
-            fiber: foodData.fiber || 3,
-            sugar: foodData.sugar || 5,
-            sodium: foodData.sodium || 300,
-          };
-          
-          const addedFoodItem = addFoodItem(newFoodItem);
+          console.log('Food item added successfully:', addedFoodItem);
           
           // Add to meal if mealType is specified
           if (mealType) {
             const today = new Date().toISOString().split('T')[0];
-            addMealEntry({
+            await addMealEntry({
               foodItem: addedFoodItem,
               servings: 1,
               mealType: mealType as MealEntry['mealType'],

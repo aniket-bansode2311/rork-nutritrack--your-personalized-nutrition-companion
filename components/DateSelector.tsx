@@ -59,7 +59,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({ date, onDateChange }
         style={styles.arrowButton}
         testID="previous-day-button"
       >
-        <ChevronLeft size={24} color={colors.darkGray} />
+        <ChevronLeft size={24} color={colors.textSecondary} />
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -83,7 +83,7 @@ export const DateSelector: React.FC<DateSelectorProps> = ({ date, onDateChange }
         disabled={isToday(currentDate)}
         testID="next-day-button"
       >
-        <ChevronRight size={24} color={isToday(currentDate) ? colors.mediumGray : colors.darkGray} />
+        <ChevronRight size={24} color={isToday(currentDate) ? colors.textTertiary : colors.textSecondary} />
       </TouchableOpacity>
     </View>
   );
@@ -94,32 +94,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
     marginHorizontal: 16,
     marginVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.gray100,
   },
   arrowButton: {
-    padding: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.gray100,
   },
   dateContainer: {
     flex: 1,
     alignItems: 'center',
   },
   dateText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
+    letterSpacing: -0.3,
   },
   todayText: {
-    fontWeight: 'normal',
+    fontWeight: '600',
     color: colors.primary,
   },
   disabledButton: {

@@ -63,7 +63,7 @@ const FoodItemRowComponent: React.FC<FoodItemRowProps> = ({ entry }) => {
           onPress={handleRemove}
           testID={`remove-food-${entry.id}`}
         >
-          <MoreVertical size={16} color={colors.darkGray} />
+          <MoreVertical size={16} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -79,39 +79,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: colors.gray200,
+    borderRadius: 12,
+    marginVertical: 2,
   },
   infoContainer: {
     flex: 1,
   },
   foodName: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.text,
+    letterSpacing: -0.2,
   },
   brand: {
     fontSize: 14,
-    color: colors.darkGray,
-    marginTop: 2,
+    color: colors.textSecondary,
+    marginTop: 3,
+    fontWeight: '500',
   },
   serving: {
     fontSize: 14,
-    color: colors.darkGray,
-    marginTop: 2,
+    color: colors.textTertiary,
+    marginTop: 3,
+    fontWeight: '500',
   },
   caloriesContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   calories: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    marginRight: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.primary,
+    marginRight: 12,
+    letterSpacing: -0.2,
   },
   moreButton: {
-    padding: 8,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: colors.gray100,
   },
 });

@@ -15,6 +15,7 @@ import { useDailyNutrition, useNutrition, useMealsByType } from '@/hooks/useNutr
 import { LoadingState } from '@/components/LoadingState';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { useToast } from '@/components/ToastProvider';
+import { NetworkDebugger } from '@/components/NetworkDebugger';
 
 const DashboardScreenComponent: React.FC = () => {
   const router = useRouter();
@@ -92,6 +93,12 @@ const DashboardScreenComponent: React.FC = () => {
     }
   }, [errorState.hasError, errorState.error, showError]);
   
+  // Show network debugger if there are network errors
+  const showNetworkDebugger = errorState.hasError && 
+    (errorState.error?.message?.includes('NETWORK_ERROR') ||
+     errorState.error?.message?.includes('Failed to fetch') ||
+     errorState.error?.message?.includes('NOT_FOUND'));
+  
   return (
     <LoadingState
       loading={isLoading}
@@ -107,6 +114,17 @@ const DashboardScreenComponent: React.FC = () => {
         }
       }}
     >
+      {showNetworkDebugger && (
+        <NetworkDebugger 
+          onRetry={() => {
+            if (Platform.OS === 'web') {
+              window.location.reload();
+            } else {
+              queryClient.refetchQueries({ type: 'active' });
+            }
+          }}
+        />
+      )}
       <DashboardContent
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}

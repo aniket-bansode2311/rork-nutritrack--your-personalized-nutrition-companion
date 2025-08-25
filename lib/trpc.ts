@@ -8,17 +8,23 @@ import { Platform } from 'react-native';
 export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
+  // For development, use the local backend
+  if (__DEV__) {
+    // Check if we're running on web or mobile
+    if (Platform.OS === 'web') {
+      return 'http://localhost:3000';
+    } else {
+      // For mobile development, use the tunnel URL or local network IP
+      return process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+    }
+  }
+  
+  // For production, use the environment variable or fallback
   const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   
   if (!baseUrl) {
     console.warn('No base URL found, using fallback');
-    return 'https://toolkit.rork.com'; // Fallback URL
-  }
-  
-  // Ensure HTTPS in production
-  if (!__DEV__ && !baseUrl.startsWith('https://')) {
-    console.warn('API base URL should use HTTPS in production, using fallback');
-    return 'https://toolkit.rork.com'; // Fallback to secure URL
+    return 'https://toolkit.rork.com';
   }
   
   return baseUrl;
@@ -43,8 +49,11 @@ const getAuthToken = async (): Promise<string | null> => {
 
 // Create secure HTTP link with authentication and better error handling
 const createSecureHttpLink = () => {
+  const baseUrl = getBaseUrl();
+  console.log('tRPC client connecting to:', `${baseUrl}/api/trpc`);
+  
   return httpLink({
-    url: `${getBaseUrl()}/api/trpc`,
+    url: `${baseUrl}/api/trpc`,
     transformer: superjson,
     headers: async () => {
       const token = await getAuthToken();
@@ -77,6 +86,11 @@ const createSecureHttpLink = () => {
         }
         
         console.log('Making tRPC request to:', url);
+        console.log('Request options:', {
+          method: options?.method,
+          headers: options?.headers,
+          body: options?.body ? 'present' : 'none'
+        });
         
         const fetchOptions = {
           ...options,
@@ -86,6 +100,7 @@ const createSecureHttpLink = () => {
         const response = await fetch(url, fetchOptions);
         
         console.log('tRPC response status:', response.status);
+        console.log('tRPC response headers:', Object.fromEntries(response.headers.entries()));
         
         // Check if response is ok
         if (!response.ok) {

@@ -164,6 +164,46 @@ CREATE TABLE IF NOT EXISTS public.smart_goal_suggestions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create body_measurements table
+CREATE TABLE IF NOT EXISTS public.body_measurements (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  type TEXT CHECK (type IN ('waist', 'chest', 'hips', 'arms', 'thighs', 'neck')) NOT NULL,
+  measurement DECIMAL(6,2) NOT NULL,
+  date DATE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create goal_reviews table
+CREATE TABLE IF NOT EXISTS public.goal_reviews (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  review_period_start DATE NOT NULL,
+  review_period_end DATE NOT NULL,
+  current_goals JSONB NOT NULL,
+  progress_data JSONB NOT NULL,
+  ai_analysis JSONB NOT NULL,
+  suggested_adjustments JSONB,
+  status TEXT CHECK (status IN ('pending', 'reviewed', 'implemented')) DEFAULT 'pending',
+  generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  reviewed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create goal_feedback table
+CREATE TABLE IF NOT EXISTS public.goal_feedback (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  goal_review_id UUID REFERENCES public.goal_reviews(id) ON DELETE CASCADE,
+  goal_suggestion_id UUID REFERENCES public.smart_goal_suggestions(id) ON DELETE CASCADE,
+  feedback_type TEXT CHECK (feedback_type IN ('helpful', 'not_helpful', 'partially_helpful')) NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  comments TEXT,
+  specific_feedback JSONB,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_food_entries_user_id ON public.food_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_food_entries_logged_at ON public.food_entries(logged_at);
@@ -180,6 +220,14 @@ CREATE INDEX IF NOT EXISTS idx_custom_foods_user_id ON public.custom_foods(user_
 CREATE INDEX IF NOT EXISTS idx_barcode_products_barcode ON public.barcode_products(barcode);
 CREATE INDEX IF NOT EXISTS idx_personalized_insights_user_id ON public.personalized_insights(user_id);
 CREATE INDEX IF NOT EXISTS idx_smart_goal_suggestions_user_id ON public.smart_goal_suggestions(user_id);
+CREATE INDEX IF NOT EXISTS idx_body_measurements_user_id ON public.body_measurements(user_id);
+CREATE INDEX IF NOT EXISTS idx_body_measurements_date ON public.body_measurements(date);
+CREATE INDEX IF NOT EXISTS idx_body_measurements_type ON public.body_measurements(type);
+CREATE INDEX IF NOT EXISTS idx_goal_reviews_user_id ON public.goal_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_goal_reviews_period ON public.goal_reviews(review_period_start, review_period_end);
+CREATE INDEX IF NOT EXISTS idx_goal_feedback_user_id ON public.goal_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_goal_feedback_review_id ON public.goal_feedback(goal_review_id);
+CREATE INDEX IF NOT EXISTS idx_goal_feedback_suggestion_id ON public.goal_feedback(goal_suggestion_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -191,6 +239,9 @@ ALTER TABLE public.water_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.personalized_insights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.smart_goal_suggestions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.body_measurements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goal_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goal_feedback ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
 -- Profiles policies
@@ -305,6 +356,45 @@ CREATE POLICY "Users can update own goal suggestions" ON public.smart_goal_sugge
   FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own goal suggestions" ON public.smart_goal_suggestions
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Body measurements policies
+CREATE POLICY "Users can view own body measurements" ON public.body_measurements
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own body measurements" ON public.body_measurements
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own body measurements" ON public.body_measurements
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own body measurements" ON public.body_measurements
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Goal reviews policies
+CREATE POLICY "Users can view own goal reviews" ON public.goal_reviews
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own goal reviews" ON public.goal_reviews
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own goal reviews" ON public.goal_reviews
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own goal reviews" ON public.goal_reviews
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Goal feedback policies
+CREATE POLICY "Users can view own goal feedback" ON public.goal_feedback
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own goal feedback" ON public.goal_feedback
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own goal feedback" ON public.goal_feedback
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own goal feedback" ON public.goal_feedback
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Barcode products can be read by everyone (public data)
